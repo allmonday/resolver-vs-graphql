@@ -32,8 +32,15 @@
 | 特性       | REST 模式                        | GraphQL（Schema）模式            |
 | ---------- | -------------------------------- | -------------------------------- |
 | 接口设计   | 基于 URL 路径和 HTTP 方法        | 基于单一端点和类型化 Schema      |
-| 数据获取   | 每个资源单独接口，可能多次请求   | 单次请求可获取多资源，按需查询   |
+| 数据获取   | 单独接口，内部组合   | 单次请求可获取多资源，按需查询   |
 | 灵活性     | 固定返回结构，也能灵活定义字段   | 前端可自定义查询字段，灵活性更高 |
 | 文档与类型 | Swagger/OpenAPI3.0, 支持生成 SDK | 自动生成 Playground，类型强校验  |
 
 本项目同时实现了 REST + resolver 和 GraphQL 两种接口，便于对比和学习两者的使用方式及优缺点。
+
+### GraphQL
+![image](https://github.com/user-attachments/assets/cf80c282-b3bc-472d-a584-bbb73a213d4d)
+
+### REST + resolver
+![image](https://github.com/user-attachments/assets/bb922804-5ed8-429c-b907-a92bf3c4b3ed)
+
