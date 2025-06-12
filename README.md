@@ -1,4 +1,4 @@
-# REST + resolver vs. Strawberry GraphQL Demo
+# REST + resolver vs. GraphQL
 
 本项目是一个基于 FastAPI 的 REST + resolver 模式和 GraphQL (trawberry) 的最小化 GraphQL 演示。
 
