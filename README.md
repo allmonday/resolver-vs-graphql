@@ -87,3 +87,42 @@ class Sprint(BaseSprint):
 可以使用 https://github.com/hey-api/openapi-ts 之类的工具生成前端 sdk
 
 ![image](https://github.com/user-attachments/assets/bb922804-5ed8-429c-b907-a92bf3c4b3ed)
+
+
+## Benchmark
+
+### 2 root nodes
+
+4x faster
+
+```shell
+~/Documents » curl -w "Time %{time_total}s\n" -o /dev/null -s http://localhost:8000/docs\#/default/get_sprints_sprints_getå
+Time 0.001493s
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+~/Documents » curl -X POST -o /dev/null  -w "Time %{time_total}s\n" -s  \                     tangkikodo@tangkikododeMacBook-Air
+  http://localhost:8000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"query MyQuery {\n  sprints {\n    id\n    name\n    start\n    stories {\n      id\n      name\n      owner\n      point\n      tasks {\n        done\n        id\n        name\n        owner\n      }\n    }\n  }\n}","operationName":"MyQuery"}'
+Time 0.005708s
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+~/Documents/portal (feature/gscp-1827) »
+```
+
+### 1000 root nodes
+
+100x faster
+
+```shell
+~/Documents » curl -w "Time %{time_total}s\n" -o /dev/null -s http://localhost:8000/docs\#/default/get_sprints_sprints_get
+Time 0.001177s
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+~/Documents » curl -X POST -o /dev/null  -w "Time %{time_total}s\n"  \                        tangkikodo@tangkikododeMacBook-Air
+  http://localhost:8000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"query MyQuery {\n  sprints {\n    id\n    name\n    start\n    stories {\n      id\n      name\n      owner\n      point\n      tasks {\n        done\n        id\n        name\n        owner\n      }\n    }\n  }\n}","operationName":"MyQuery"}'
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  374k  100  374k  100   252  2106k   1418 --:--:-- --:--:-- --:--:-- 2114k
+Time 0.177594s
+```
