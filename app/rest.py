@@ -4,6 +4,8 @@ import datetime
 from aiodataloader import DataLoader
 from typing import List, Dict
 from pydantic_resolve import LoaderDepend, ensure_subset
+from fastapi import APIRouter
+from pydantic_resolve import Resolver
 
 class BaseTask(BaseModel):
     id: int
@@ -78,3 +80,19 @@ class Sprint(BaseSprint):
     simple_stories: list[SimpleStory] = []
     def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
         return loader.load(self.id)
+
+router = APIRouter()
+
+@router.get('/sprints', response_model=list[Sprint])
+async def get_sprints():
+    sprint1 = Sprint(
+        id=1,
+        name="Sprint 1",
+        start=datetime.datetime(2025, 6, 12)
+    )
+    sprint2 = Sprint(
+        id=2,
+        name="Sprint 2",
+        start=datetime.datetime(2025, 7, 1)
+    )
+    return await Resolver().resolve([sprint1, sprint2])
