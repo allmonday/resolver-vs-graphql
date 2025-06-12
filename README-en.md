@@ -6,7 +6,7 @@ More comparison scenarios will be added gradually. Currently, only data construc
 
 ## Features
 
-Compare two data access modes: REST + resolver and GraphQL (Schema)
+Compare two data access modes: REST + resolver and GraphQL
 - [x] data orchestration
 - [ ] post-process / modification
 - [ ] frontend client
