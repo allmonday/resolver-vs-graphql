@@ -78,6 +78,8 @@ Flexible, supports queries, suitable for scenarios requiring flexible data queri
 
 ### REST + Resolver
 
+boosted by [pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
+
 Uses a smaller tech stack to build equivalent data structures, suitable for internal API integration scenarios.
 
 You can use tools like https://github.com/hey-api/openapi-ts to generate frontend SDKs.

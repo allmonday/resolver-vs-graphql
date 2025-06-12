@@ -80,6 +80,8 @@ class Sprint(BaseSprint):
 
 ### REST + resolver
 
+使用 [pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
+
 使用更少的技术栈， 来构建等价的数据结构， 适合项目内部 api 对接的场景
 
 可以使用 https://github.com/hey-api/openapi-ts 之类的工具生成前端 sdk
