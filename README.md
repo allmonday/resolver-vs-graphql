@@ -11,6 +11,38 @@
 - Strawberry GraphQL 端点：`/graphql`
 - 比较 REST + resolver 和 GraphQL（Schema）两种数据访问模式
 
+在 rest.py 中， 我们使用扩展 Pydantic 类的方式来组合数据
+
+```python
+
+# ---- business model ------
+class Story(BaseStory):
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
+
+
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel):  # how to pick fields..
+    id: int
+    name: str
+    point: int
+
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
+
+# or
+class Sprint(BaseSprint):
+    stories: list[Story] = []
+    def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
+        return loader.load(self.id)
+
+    simple_stories: list[SimpleStory] = []
+    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+        return loader.load(self.id)
+```
+
 ## Getting Started
 
 1. 安装依赖：
