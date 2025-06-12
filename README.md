@@ -2,7 +2,7 @@
 
 [EN](./README-en.md)
 
-本项目是一个基于 FastAPI 的 REST + resolver 模式和 GraphQL (trawberry) 的最小化 GraphQL 演示。
+本项目是一个基于 FastAPI 的 REST + resolver 模式和 GraphQL (trawberry) 模式的比较项目
 
 后续会逐步添加更多的比较场景， 当前只比较了数据构建相关的部分。
 
