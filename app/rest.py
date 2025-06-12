@@ -3,7 +3,7 @@ from typing import List
 import datetime
 from aiodataloader import DataLoader
 from typing import List, Dict
-from pydantic_resolve import LoaderDepend
+from pydantic_resolve import LoaderDepend, ensure_subset
 
 class BaseTask(BaseModel):
     id: int
@@ -58,8 +58,23 @@ class Story(BaseStory):
     tasks: list[BaseTask] = []
     def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
         return loader.load(self.id)
+    
+
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel):  # how to pick fields..
+    id: int
+    name: str
+    point: int
+
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
 
 class Sprint(BaseSprint):
     stories: list[Story] = []
     def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
+        return loader.load(self.id)
+
+    simple_stories: list[SimpleStory] = []
+    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
         return loader.load(self.id)
