@@ -1,6 +1,6 @@
 # REST + Resolver vs. GraphQL
 
-This project is a minimal demonstration of REST + resolver mode and GraphQL (Strawberry) based on FastAPI.
+This project is a minimal demonstration of REST + resolver mode compares to GraphQL (Strawberry) based on FastAPI.
 
 More comparison scenarios will be added gradually. Currently, only data construction is compared.
 
