@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from typing import List, Dict
 import strawberry
@@ -19,7 +20,7 @@ STORIES_DB = [
 ]
 
 async def batch_load_tasks(story_ids: List[int]) -> List[List["Task"]]:
-    # Group tasks by story_id
+    await asyncio.sleep(0.01)  # Simulate async DB call
     story_id_to_tasks: Dict[int, List[Task]] = {sid: [] for sid in story_ids}
     for t in TASKS_DB:
         if t["story_id"] in story_id_to_tasks:
@@ -27,6 +28,7 @@ async def batch_load_tasks(story_ids: List[int]) -> List[List["Task"]]:
     return [story_id_to_tasks[sid] for sid in story_ids]
 
 async def batch_load_stories(sprint_ids: List[int]) -> List[List["Story"]]:
+    await asyncio.sleep(0.01)  # Simulate async DB call
     sprint_id_to_stories: Dict[int, List[Story]] = {sid: [] for sid in sprint_ids}
     for s in STORIES_DB:
         if s["sprint_id"] in sprint_id_to_stories:
@@ -89,7 +91,7 @@ class Query:
             name="Sprint 2",
             start=datetime.datetime(2025, 7, 1)
         )
-        return [sprint1, sprint2] * 500
+        return [sprint1, sprint2] * 10
 
 schema = strawberry.Schema(query=Query)
 

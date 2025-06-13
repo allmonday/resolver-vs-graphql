@@ -1,3 +1,4 @@
+import asyncio
 from pydantic import BaseModel
 from typing import List
 import datetime
@@ -40,6 +41,7 @@ STORIES_DB = [
 
 class TaskLoader(DataLoader):
     async def batch_load_fn(self, story_ids: List[int]) -> List[List[BaseTask]]:
+        await asyncio.sleep(0.01)  # Simulate async DB call
         story_id_to_tasks = {sid: [] for sid in story_ids}
         for t in TASKS_DB:
             if t["story_id"] in story_id_to_tasks:
@@ -48,6 +50,7 @@ class TaskLoader(DataLoader):
 
 class StoryLoader(DataLoader):
     async def batch_load_fn(self, sprint_ids: List[int]) -> List[List[BaseStory]]:
+        await asyncio.sleep(0.01)  # Simulate async DB call
         sprint_id_to_stories = {sid: [] for sid in sprint_ids}
         for s in STORIES_DB:
             if s["sprint_id"] in sprint_id_to_stories:
@@ -95,4 +98,4 @@ async def get_sprints():
         name="Sprint 2",
         start=datetime.datetime(2025, 7, 1)
     )
-    return await Resolver().resolve([sprint1, sprint2] * 500)
+    return await Resolver().resolve([sprint1, sprint2] * 10)
