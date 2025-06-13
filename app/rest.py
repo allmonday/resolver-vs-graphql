@@ -77,9 +77,9 @@ class Sprint(BaseSprint):
     def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
         return loader.load(self.id)
 
-    simple_stories: list[SimpleStory] = []
-    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
-        return loader.load(self.id)
+    # simple_stories: list[SimpleStory] = []
+    # def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+    #     return loader.load(self.id)
 
 router = APIRouter()
 
@@ -95,4 +95,4 @@ async def get_sprints():
         name="Sprint 2",
         start=datetime.datetime(2025, 7, 1)
     )
-    return await Resolver().resolve([sprint1, sprint2])
+    return await Resolver().resolve([sprint1, sprint2] * 500)

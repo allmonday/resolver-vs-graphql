@@ -89,7 +89,7 @@ class Query:
             name="Sprint 2",
             start=datetime.datetime(2025, 7, 1)
         )
-        return [sprint1, sprint2]
+        return [sprint1, sprint2] * 500
 
 schema = strawberry.Schema(query=Query)
 
