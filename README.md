@@ -2,48 +2,38 @@
 
 [EN](./README-en.md)
 
-本项目是一个基于 FastAPI 的 REST + resolver 模式和 GraphQL (trawberry) 模式的比较项目
+这是一个基于 FastAPI 的 REST + resolver 模式和 GraphQL (strawberry) 模式的比较项目
 
-后续会逐步添加更多的比较场景， 当前只比较了数据构建相关的部分。
+关注的是**项目内部前后端之间 API 调用**的最佳开发模式。
 
-## Features
+> 这里不会去过多介绍 GraphQL (strawberry) 的概念和使用方式，
 
-- Strawberry GraphQL 端点：`/graphql`
-- 比较 REST + resolver 和 GraphQL（Schema）两种数据访问模式
+比较的场景有这些：
 
-在 rest.py 中， 我们使用扩展 Pydantic 类的方式来组合数据
+- [x] 关联数据的获取和构建
+- [ ] 数据在每一个节点的后处理, 最小成本构建试图数据
+- [ ] 前端查询方式的简化
+- [ ] 重构上的区别
 
-```python
+## 介绍
 
-# ---- business model ------
-class Story(BaseStory):
-    tasks: list[BaseTask] = []
-    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
-        return loader.load(self.id)
+GraphQL 是一个优秀的 API 查询工具， 被人广泛在各个场景中使用。 但他也不是银弹， 根据具体使用的场景不同， 也存在着各式各样的问题， 这里专门针对 `项目内部前后端 API 对接 ` 这种常见场景， 分析 GraphQL 存在的问题， 并且尝试使用基于 `pydantic-resolve` 的 REST + resolver 模式来逐一解决。
 
+先简单介绍一下什么是 REST + Resolver 模式， 这是一种基于当前已有的 REST 接口， 通过引入 GraphQL resolver 的概念， 将原本 "通用" 的 RESTful 接口， 扩展构建成类似 RPC 的， 为前端页面专供数据的接口。
 
-@ensure_subset(BaseStory)
-class SimpleStory(BaseModel):  # how to pick fields..
-    id: int
-    name: str
-    point: int
+在 REST + resolver 模式中， 我们基于 Pydantic 类来扩展，组合数据
 
-    tasks: list[BaseTask] = []
-    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
-        return loader.load(self.id)
+比如 Story 可以直接继承 BaseStory 所有的字段， 也可以使用 `@ensure_subset(BaseStory)` 加上自定义字段来实现类似 GraphQL 中挑选字段的功能。
 
-# or
-class Sprint(BaseSprint):
-    stories: list[Story] = []
-    def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
-        return loader.load(self.id)
+并且可以通过 resolve method + DataLoader 来层层拼装数据。
 
-    simple_stories: list[SimpleStory] = []
-    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
-        return loader.load(self.id)
-```
+用通俗的说法就是， 通过定义 pydantic 类 + 提供入口的根数据， 使得接口可以提供精确满足前端需求的视图数据。
 
-## Getting Started
+它可以扮演类似 BFF 层的角色， 而且比其他传统的 BFF 工具， 它在构建视图数据的过程中比较有创意的，给每层节点都引入了 “后处理” 的方法， 使得许多原本需要遍历展开的汇总计算都变得一如反掌。
+
+更多关于 pydantic-resolve 的功能请移步 [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
+
+## 启动
 
 1. 安装依赖：
    ```sh
@@ -58,15 +48,15 @@ class Sprint(BaseSprint):
 
 ## 项目结构
 
-- `app/schema.py`：Strawberry GraphQL schema
-- `app/main.py`：FastAPI 应用入口
+- `app/graphql.py`
+- `app/rest.py`
 
 ## REST + resolver 与 GraphQL 模式对比
 
-| 特性       | REST 模式                        | GraphQL（Schema）模式            |
+| 特性       | REST + Resolver 模式             | GraphQL 模式                     |
 | ---------- | -------------------------------- | -------------------------------- |
 | 接口设计   | 基于 URL 路径和 HTTP 方法        | 基于单一端点和类型化 Schema      |
-| 数据获取   | 单独接口，内部组合               | 单次请求可获取多资源，按需查询   |
+| 数据获取   | 单独接口，内部代码静态构建       | 单次请求可获取多资源，按需查询   |
 | 灵活性     | 固定返回结构，也能灵活定义字段   | 前端可自定义查询字段，灵活性更高 |
 | 文档与类型 | Swagger/OpenAPI3.0, 支持生成 SDK | 自动生成 Playground，类型强校验  |
 
@@ -87,8 +77,6 @@ class Sprint(BaseSprint):
 可以使用 https://github.com/hey-api/openapi-ts 之类的工具生成前端 sdk
 
 ![image](https://github.com/user-attachments/assets/bb922804-5ed8-429c-b907-a92bf3c4b3ed)
-
-
 
 ## Benchmark
 
@@ -125,7 +113,6 @@ Processing:    31  178  14.3    178     272
 Waiting:       30  176  14.3    176     270
 Total:         31  178  14.4    179     273
 ```
-
 
 ### rest + resolver
 
