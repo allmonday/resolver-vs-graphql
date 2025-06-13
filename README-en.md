@@ -91,35 +91,66 @@ You can use tools like https://github.com/hey-api/openapi-ts to generate fronten
 
 ## Benchmark
 
-### 2 root nodes
+`ab -c 50 -n 1000`
 
-4x faster
-
-```shell
-~/Documents » curl -w "Time %{time_total}s\n" -o /dev/null -s http://localhost:8000/docs\#/default/get_sprints_sprints_getå
-Time 0.001493s
-
-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-~/Documents » curl -X POST -o /dev/null  -w "Time %{time_total}s\n" -s  \                     tangkikodo@tangkikododeMacBook-Air
-  http://localhost:8000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query":"query MyQuery {\n  sprints {\n    id\n    name\n    start\n    stories {\n      id\n      name\n      owner\n      point\n      tasks {\n        done\n        id\n        name\n        owner\n      }\n    }\n  }\n}","operationName":"MyQuery"}'
-Time 0.005708s
-```
-
-### 1000 root nodes
-
-100x faster
+### graphql
 
 ```shell
-~/Documents » curl -w "Time %{time_total}s\n" -o /dev/null -s http://localhost:8000/docs\#/default/get_sprints_sprints_get
-Time 0.001177s
-------------------------------------------------------------------------------------------------------------------------------------------------------------
-~/Documents » curl -X POST -o /dev/null  -w "Time %{time_total}s\n" -s \                        tangkikodo@tangkikododeMacBook-Air
-  http://localhost:8000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query":"query MyQuery {\n  sprints {\n    id\n    name\n    start\n    stories {\n      id\n      name\n      owner\n      point\n      tasks {\n        done\n        id\n        name\n        owner\n      }\n    }\n  }\n}","operationName":"MyQuery"}'
-Time 0.177594s
+Server Software:        uvicorn
+Server Hostname:        localhost
+Server Port:            8000
+
+Document Path:          /graphql
+Document Length:        5303 bytes
+
+Concurrency Level:      50
+Time taken for tests:   3.630 seconds
+Complete requests:      1000
+Failed requests:        0
+Total transferred:      5430000 bytes
+Total body sent:        395000
+HTML transferred:       5303000 bytes
+Requests per second:    275.49 [#/sec] (mean)
+Time per request:       181.498 [ms] (mean)
+Time per request:       3.630 [ms] (mean, across all concurrent requests)
+Transfer rate:          1460.82 [Kbytes/sec] received
+                        106.27 kb/s sent
+                        1567.09 kb/s total
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.2      0       1
+Processing:    31  178  14.3    178     272
+Waiting:       30  176  14.3    176     270
+Total:         31  178  14.4    179     273
 ```
 
+
+### rest + resolver
+
+```shell
+Server Software:        uvicorn
+Server Hostname:        localhost
+Server Port:            8000
+
+Document Path:          /sprints
+Document Length:        4621 bytes
+
+Concurrency Level:      50
+Time taken for tests:   2.194 seconds
+Complete requests:      1000
+Failed requests:        0
+Total transferred:      4748000 bytes
+HTML transferred:       4621000 bytes
+Requests per second:    455.79 [#/sec] (mean)
+Time per request:       109.700 [ms] (mean)
+Time per request:       2.194 [ms] (mean, across all concurrent requests)
+Transfer rate:          2113.36 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.3      0       1
+Processing:    30  107  10.9    106     138
+Waiting:       28  105  10.7    104     138
+Total:         30  107  11.0    106     140
+```
