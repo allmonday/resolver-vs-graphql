@@ -1,8 +1,8 @@
-# REST + resolver vs. GraphQL
+# RESTful + resolver vs. GraphQL
 
 [EN](./README-en.md)
 
-这是一个基于 FastAPI 的 REST + resolver 模式和 GraphQL (strawberry) 模式的比较项目
+这是一个基于 FastAPI 的 RESTful + resolver 模式和 GraphQL (strawberry) 模式的比较项目
 
 关注的是**项目内部前后端之间 API 调用**的最佳开发模式。
 
@@ -17,11 +17,11 @@
 
 ## 介绍
 
-GraphQL 是一个优秀的 API 查询工具， 被人广泛在各个场景中使用。 但他也不是银弹， 根据具体使用的场景不同， 也存在着各式各样的问题， 这里专门针对 `项目内部前后端 API 对接 ` 这种常见场景， 分析 GraphQL 存在的问题， 并且尝试使用基于 `pydantic-resolve` 的 REST + resolver 模式来逐一解决。
+GraphQL 是一个优秀的 API 查询工具， 被人广泛在各个场景中使用。 但他也不是银弹， 根据具体使用的场景不同， 也存在着各式各样的问题， 这里专门针对 `项目内部前后端 API 对接 ` 这种常见场景， 分析 GraphQL 存在的问题， 并且尝试使用基于 `pydantic-resolve` 的 RESTful + resolver 模式来逐一解决。
 
-先简单介绍一下什么是 REST + Resolver 模式， 这是一种基于当前已有的 REST 接口， 通过引入 GraphQL resolver 的概念， 将原本 "通用" 的 RESTful 接口， 扩展构建成类似 RPC 的， 为前端页面专供数据的接口。
+先简单介绍一下什么是 RESTful + Resolver 模式， 这是一种基于当前已有的 RESTful 接口， 通过引入 GraphQL resolver 的概念， 将原本 "通用" 的 RESTful 接口， 扩展构建成类似 RPC 的， 为前端页面专供数据的接口。
 
-在 REST + resolver 模式中， 我们基于 Pydantic 类来扩展，组合数据
+在 RESTful + resolver 模式中， 我们基于 Pydantic 类来扩展，组合数据
 
 比如 Story 可以直接继承 BaseStory 所有的字段， 也可以使用 `@ensure_subset(BaseStory)` 加上自定义字段来实现类似 GraphQL 中挑选字段的功能。
 
@@ -44,23 +44,23 @@ GraphQL 是一个优秀的 API 查询工具， 被人广泛在各个场景中使
    uvicorn app.main:app --reload
    ```
 3. 打开 [http://localhost:8000/graphql](http://localhost:8000/graphql) 访问 GraphQL playground。
-4. 打开 [http://localhost:8000/docs#/default/get_sprints_sprints_get](http://localhost:8000/docs#/default/get_sprints_sprints_get) 查看 REST + resolver 模式
+4. 打开 [http://localhost:8000/docs#/default/get_sprints_sprints_get](http://localhost:8000/docs#/default/get_sprints_sprints_get) 查看 RESTful + resolver 模式
 
 ## 项目结构
 
 - `app/graphql.py`
-- `app/rest.py`
+- `app/RESTful.py`
 
-## REST + resolver 与 GraphQL 模式对比
+## RESTful + resolver 与 GraphQL 模式对比
 
-| 特性       | REST + Resolver 模式             | GraphQL 模式                     |
+| 特性       | RESTful + Resolver 模式          | GraphQL 模式                     |
 | ---------- | -------------------------------- | -------------------------------- |
 | 接口设计   | 基于 URL 路径和 HTTP 方法        | 基于单一端点和类型化 Schema      |
 | 数据获取   | 单独接口，内部代码静态构建       | 单次请求可获取多资源，按需查询   |
 | 灵活性     | 固定返回结构，也能灵活定义字段   | 前端可自定义查询字段，灵活性更高 |
 | 文档与类型 | Swagger/OpenAPI3.0, 支持生成 SDK | 自动生成 Playground，类型强校验  |
 
-本项目同时实现了 REST + resolver 和 GraphQL 两种接口，便于对比和学习两者的使用方式及优缺点。
+本项目同时实现了 RESTful + resolver 和 GraphQL 两种接口，便于对比和学习两者的使用方式及优缺点。
 
 ### GraphQL
 
@@ -68,7 +68,7 @@ GraphQL 是一个优秀的 API 查询工具， 被人广泛在各个场景中使
 
 ![image](https://github.com/user-attachments/assets/cf80c282-b3bc-472d-a584-bbb73a213d4d)
 
-### REST + resolver
+### RESTful + resolver
 
 使用 [pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
 
@@ -114,7 +114,7 @@ Waiting:       30  176  14.3    176     270
 Total:         31  178  14.4    179     273
 ```
 
-### rest + resolver
+### RESTful + resolver
 
 ```shell
 Server Software:        uvicorn
