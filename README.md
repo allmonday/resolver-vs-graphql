@@ -89,36 +89,3 @@ class Sprint(BaseSprint):
 ![image](https://github.com/user-attachments/assets/bb922804-5ed8-429c-b907-a92bf3c4b3ed)
 
 
-## Benchmark
-
-### 2 root nodes
-
-4x faster
-
-```shell
-~/Documents » curl -w "Time %{time_total}s\n" -o /dev/null -s http://localhost:8000/docs\#/default/get_sprints_sprints_getå
-Time 0.001493s
-
-------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-~/Documents » curl -X POST -o /dev/null  -w "Time %{time_total}s\n" -s  \                     tangkikodo@tangkikododeMacBook-Air
-  http://localhost:8000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query":"query MyQuery {\n  sprints {\n    id\n    name\n    start\n    stories {\n      id\n      name\n      owner\n      point\n      tasks {\n        done\n        id\n        name\n        owner\n      }\n    }\n  }\n}","operationName":"MyQuery"}'
-Time 0.005708s
-```
-
-### 1000 root nodes
-
-100x faster
-
-```shell
-~/Documents » curl -w "Time %{time_total}s\n" -o /dev/null -s http://localhost:8000/docs\#/default/get_sprints_sprints_get
-Time 0.001177s
-------------------------------------------------------------------------------------------------------------------------------------------------------------
-~/Documents » curl -X POST -o /dev/null  -w "Time %{time_total}s\n" -s \                        tangkikodo@tangkikododeMacBook-Air
-  http://localhost:8000/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query":"query MyQuery {\n  sprints {\n    id\n    name\n    start\n    stories {\n      id\n      name\n      owner\n      point\n      tasks {\n        done\n        id\n        name\n        owner\n      }\n    }\n  }\n}","operationName":"MyQuery"}'
-Time 0.177594s
-```
