@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import strawberry
 from strawberry.dataloader import DataLoader
 from strawberry.fastapi import GraphQLRouter, BaseContext
@@ -35,11 +35,24 @@ async def batch_load_stories(sprint_ids: List[int]) -> List[List["Story"]]:
             sprint_id_to_stories[s["sprint_id"]].append(Story(id=s["id"], name=s["name"], owner=s["owner"], point=s["point"]))
     return [sprint_id_to_stories[sid] for sid in sprint_ids]
 
+async def batch_load_stories_with_filter(input: List[Tuple[int, List[int]]]) -> List[List["Story"]]:
+    await asyncio.sleep(0.01)  # Simulate async DB call
+    sprint_ids = [item[0] for item in input]
+    story_ids = input[0][1] # need extra code to check the length of input
+    sprint_id_to_stories: Dict[int, List[Story]] = {sid: [] for sid in sprint_ids}
+
+    for s in STORIES_DB:
+        if s["sprint_id"] in sprint_id_to_stories:
+            if not story_ids or s["id"] in story_ids:
+                sprint_id_to_stories[s["sprint_id"]].append(Story(id=s["id"], name=s["name"], owner=s["owner"], point=s["point"]))
+    return [sprint_id_to_stories[sid] for sid in sprint_ids]
+
 # Custom context class inheriting from BaseContext
 class CustomContext(BaseContext):
     def __init__(self):
         self.task_loader = DataLoader(load_fn=batch_load_tasks)
         self.story_loader = DataLoader(load_fn=batch_load_stories)
+        self.story_loader_with_filter = DataLoader(load_fn=batch_load_stories_with_filter)
         self.name = "tangkikodo"
 
 # Dependency that returns the custom context
@@ -75,6 +88,11 @@ class Sprint:
     async def stories(self, info: strawberry.Info, ids: list[int]) -> List["Story"]:
         stories = await info.context.story_loader.load(self.id)
         return [s for s in stories if s.id in ids]
+
+    @strawberry.field
+    async def stories2(self, info: strawberry.Info, ids: list[int]) -> List["Story"]:
+        stories = await info.context.story_loader_with_filter.load((self.id, ids))
+        return stories
 
 
 @strawberry.type

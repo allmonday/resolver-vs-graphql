@@ -49,12 +49,14 @@ class TaskLoader(DataLoader):
         return [story_id_to_tasks[sid] for sid in story_ids]
 
 class StoryLoader(DataLoader):
+    story_ids: List[int]
     async def batch_load_fn(self, sprint_ids: List[int]) -> List[List[BaseStory]]:
         await asyncio.sleep(0.01)  # Simulate async DB call
         sprint_id_to_stories = {sid: [] for sid in sprint_ids}
         for s in STORIES_DB:
             if s["sprint_id"] in sprint_id_to_stories:
-                sprint_id_to_stories[s["sprint_id"]].append(s)
+                if not self.story_ids or s["id"] in self.story_ids:
+                    sprint_id_to_stories[s["sprint_id"]].append(s)
         return [sprint_id_to_stories[sid] for sid in sprint_ids]
 
 
@@ -77,9 +79,8 @@ class SimpleStory(BaseModel):  # how to pick fields..
 
 class Sprint(BaseSprint):
     simple_stories: list[SimpleStory] = []
-    async def resolve_simple_stories(self, context, loader=LoaderDepend(StoryLoader)):
+    async def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
         stories = await loader.load(self.id)
-        stories = [s for s in stories if s.id in context['story_ids']]
         return stories
 
 router = APIRouter()
@@ -97,5 +98,9 @@ async def get_sprints():
         start=datetime.datetime(2025, 7, 1)
     )
     return await Resolver(
-        context={'story_ids': [1, 2, 3]},
+        loader_params={
+            StoryLoader: {
+                'story_ids': [1, 2, 3]
+            },
+        }
     ).resolve([sprint1, sprint2] * 10)

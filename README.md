@@ -1,4 +1,4 @@
-# Resolver vs. GraphQL  （wip)
+# Resolver vs. GraphQL （wip)
 
 [EN](./README-en.md)
 
@@ -11,7 +11,7 @@
 比较的场景有以下这些：
 
 - [x] 关联数据的获取和构建
-- [ ] 查询参数的传递
+- [x] 查询参数的传递
 - [ ] 前端查询方式的比较
 - [ ] 数据在每一个节点的后处理, 最小成本构建试图数据
 - [ ] 架构和重构上的区别
@@ -37,7 +37,6 @@ GraphQL 是一个优秀的 API 查询工具， 广泛应用在许多场景中使
 
 更多关于 pydantic-resolve 的功能请移步 [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
 
-
 ## 启动项目
 
 1. 安装依赖：
@@ -52,8 +51,6 @@ GraphQL 是一个优秀的 API 查询工具， 广泛应用在许多场景中使
    ```
 3. 打开 [http://localhost:8000/graphql](http://localhost:8000/graphql) 访问 GraphQL playground。
 4. 打开 [http://localhost:8000/docs](http://localhost:8000/docs) 查看 Resolver 模式
-
-
 
 ## 1. 数据获取和组合
 
@@ -109,7 +106,7 @@ class Story(BaseStory):
     tasks: list[BaseTask] = []
     def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
         return loader.load(self.id)
-    
+
 
 @ensure_subset(BaseStory)
 class SimpleStory(BaseModel):  # how to pick fields..
@@ -213,10 +210,10 @@ await Resolver().resolve(Query())
 
 就好了。
 
-Resolver 的另一个能力是处理自引用类型数据的能力， 
+Resolver 的另一个能力是处理自引用类型数据的能力，
 因为不用像 GraphQL 那样提供 Query 语句， 所以自引用类型（比如 Tree） 这类数据的构建逻辑可以完全交给后端来管理
 
-作为对比， 在 GraphQL 中， 查询者因为不知道真实深度， 就需写出类似 
+作为对比， 在 GraphQL 中， 查询者因为不知道真实深度， 就需写出类似
 
 ```graphql
 query MyQuery {
@@ -252,7 +249,7 @@ async def get_tree():
 
 然后简单 `curl http://localhost:8000/tree` 就搞定了。 深度问题交给后端具体逻辑去解决。
 
-## 查询参数的传递 (draft)
+## 查询参数的传递
 
 ```sh
 uvicorn app_filter.main:app --reload
@@ -334,20 +331,71 @@ async def get_sprints():
 
 在形式上和 GraphQL 的做法是等价的。
 
-到这里你也许注意到提供的 ids 的用法中， 获取了 stories 之后再通过代码来过滤是一种非常低效的做法， 更好的方式显然是传递给 Data
+到这里你也许注意到提供的 ids 的用法中， 获取了 stories 之后再通过代码来过滤是一种非常低效的做法， 更好的方式显然是传递给 Dataloader 然后让它在数据获取的过程中就完成过滤的功能。
 
+在 GraphqlQL 场景中， Dataloader 只有通过 `loader.load(params)` 方法中的 params 来设置， 所以想要实现这个功能只有一些比较变扭的写法， 比如把 id 和 ids 一起通过 params 传递到 dataloader 中
 
+```python
+  @strawberry.field
+  async def stories2(self, info: strawberry.Info, ids: list[int]) -> List["Story"]:
+      stories = await info.context.story_loader.load((self.id, ids))
+      return stories
+```
 
+然后在 Dataloader 内部拆分出来， 这时 Tuple 中的第二个参数实际上是非常冗余的存在。
 
+```python
+async def batch_load_stories_with_filter(input: List[Tuple[int, List[int]]]) -> List[List["Story"]]:
+    await asyncio.sleep(0.01)  # Simulate async DB call
+    sprint_ids = [item[0] for item in input]
+    story_ids = input[0][1] # need extra code to check the length of input
+    sprint_id_to_stories: Dict[int, List[Story]] = {sid: [] for sid in sprint_ids}
 
+    for s in STORIES_DB:
+        if s["sprint_id"] in sprint_id_to_stories:
+            if not story_ids or s["id"] in story_ids:
+              sprint_id_to_stories[s["sprint_id"]].append(Story(id=s["id"], name=s["name"], owner=s["owner"], point=s["point"]))
+    return [sprint_id_to_stories[sid] for sid in sprint_ids]
+```
 
-resolver 可以在 resolver 的 context 中集中管理查询参数
+而在 Resolver 这种多入口的模式中， 这个问题解决起来就非常简单，直接给 Dataloader 类添加字段 story_ids
 
-同时还支持 parent, ancestor 参数的获取
+```python
+class StoryLoader(DataLoader):
+    story_ids: List[int]
+    async def batch_load_fn(self, sprint_ids: List[int]) -> List[List[BaseStory]]:
+        await asyncio.sleep(0.01)  # Simulate async DB call
+        sprint_id_to_stories = {sid: [] for sid in sprint_ids}
+        for s in STORIES_DB:
+            if s["sprint_id"] in sprint_id_to_stories:
+                if not self.story_ids or s["id"] in self.story_ids:
+                    sprint_id_to_stories[s["sprint_id"]].append(s)
+        return [sprint_id_to_stories[sid] for sid in sprint_ids]
+```
 
-另外还为 dataloader 提供了参数设置
+然后在 Resolver() 方法中直接传递参数
 
-table 比较
+```python
+return await Resolver(
+  loader_params={
+      StoryLoader: {
+          'story_ids': [1, 2, 3]
+      },
+  }
+).resolve([sprint1, sprint2] * 10)
+```
+
+另外， `pydantic-resolve` 还提供了 parent 来获取父节点对象， 提供了 `ancestor_context` 来获取祖先节点的特定字段。 这些都是目前 GraphQL 框架普遍不支持的功能。 具体使用方式可以移步 [ancestor_context](https://allmonday.github.io/pydantic-resolve/api/#ancestor_context), [parent](https://allmonday.github.io/pydantic-resolve/api/#parent)。
+
+总结一下：
+
+| 参数类型     | Resolver | GraphQL  |
+| ------------ | -------- | -------- |
+| 节点         | 支持     | 支持     |
+| 全局 context | 支持     | 支持     |
+| 父节点       | 支持     | 有限支持 |
+| 祖先节点     | 支持     | 不支持   |
+| dataloader   | 支持     | 不支持   |
 
 ## 前端查询方式的差别 (draft)
 
@@ -362,6 +410,7 @@ rersolver 模式的书写本身也不复杂， 甚至让前端自己过来拼装
 ## 数据在每个节点的后处理，轻松构建视图数据 (draft)
 
 先说明后处理方法的意义：
+
 - 可以在每层节点上修改字段， 或者读取子孙节点的数据， 来实现各种统计或者聚合操作
 - 可以对节点数据做跨层的移动， 调整
 
@@ -399,7 +448,7 @@ tips：更多的案例
 
 ## Resolver 与 GraphQL 模式对比
 
-| 特性       | Resolver 模式          | GraphQL 模式                     |
+| 特性       | Resolver 模式                    | GraphQL 模式                     |
 | ---------- | -------------------------------- | -------------------------------- |
 | 接口设计   | 基于 URL 路径和 HTTP 方法        | 基于单一端点和类型化 Schema      |
 | 数据获取   | 单独接口，内部代码静态构建       | 单次请求可获取多资源，按需查询   |
@@ -423,7 +472,6 @@ tips：更多的案例
 可以使用 https://github.com/hey-api/openapi-ts 之类的工具生成前端 sdk
 
 ![image](https://github.com/user-attachments/assets/bb922804-5ed8-429c-b907-a92bf3c4b3ed)
-
 
 ## Benchmark
 
