@@ -4,7 +4,7 @@
 
 This is a comparative project between the Resolver pattern and the GraphQL (strawberry) pattern based on FastAPI.
 
-It focuses on the optimal development pattern for **internal front - end to back - end API calls within a project** (also applicable to the BFF - backend for frontend scenario).
+It focuses on the optimal development pattern for **internal frontend to backend API calls within a project** (also applicable to the BFF - backend for frontend scenario).
 
 > It is assumed that the reader is familiar with GraphQL and RESTful, so the basic concepts will not be repeated here.
 
@@ -12,15 +12,15 @@ The comparison scenarios include:
 
 - [x] Retrieval and construction of associated data
 - [x] Passing of query parameters
-- [x] Comparison of front - end query methods
+- [x] Comparison of frontend query methods
 - [x] Post - processing of data at each node to construct view data at minimum cost
 - [x] Differences in architecture and refactoring
 
 ## Introduction
 
-GraphQL is an excellent API query tool widely used in various scenarios. However, it is not a one - size - fits - all solution and may encounter various problems in different scenarios. This article specifically analyzes the problems of GraphQL in the common scenario of "internal front - end to back - end API docking within a project" and attempts to solve them one by one using the Resolver pattern based on `pydantic - resolve`.
+GraphQL is an excellent API query tool widely used in various scenarios. However, it is not a one - size - fits - all solution and may encounter various problems in different scenarios. This article specifically analyzes the problems of GraphQL in the common scenario of "internal frontend to backend API docking within a project" and attempts to solve them one by one using the Resolver pattern based on `pydantic - resolve`.
 
-Let's first briefly introduce what the Resolver pattern is: It is a pattern that, based on existing RESTful interfaces, extends the originally "generic" RESTful interfaces into RPC - like interfaces customized for front - end pages by introducing the concept of resolvers.
+Let's first briefly introduce what the Resolver pattern is: It is a pattern that, based on existing RESTful interfaces, extends the originally "generic" RESTful interfaces into RPC - like interfaces customized for frontend pages by introducing the concept of resolvers.
 
 In the Resolver pattern, we extend and combine data based on Pydantic classes.
 
@@ -28,13 +28,13 @@ For example, a `Story` can directly inherit all fields from `BaseStory`, or it c
 
 Data can also be assembled layer by layer through resolve methods and DataLoader.
 
-Put simply, by defining Pydantic classes and providing a root data entry, the interface can precisely meet the front - end's requirements for view data.
+Put simply, by defining Pydantic classes and providing a root data entry, the interface can precisely meet the frontend's requirements for view data.
 
 It can act as a BFF layer, and compared with traditional BFF tools, it is more innovative in the process of constructing view data - it introduces a "post - processing" method for each layer of nodes, making many summary calculations that originally required traversal and expansion much easier.
 
 The specific details will be explained in the subsequent comparison.
 
-For more features of `pydantic - resolve`, please refer to [https://github.com/allmonday/pydantic - resolve](https://github.com/allmonday/pydantic - resolve).
+For more features of `pydantic - resolve`, please refer to [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve).
 
 ## Starting the Project
 
@@ -382,7 +382,7 @@ return await Resolver(
 ).resolve([sprint1, sprint2] * 10)
 ```
 
-In addition, `pydantic - resolve` also provides `parent` to obtain the parent - node object and `ancestor_context` to obtain specific fields of ancestor nodes. These are functions generally not supported by current GraphQL frameworks. For specific usage methods, please refer to [ancestor_context](https://allmonday.github.io/pydantic - resolve/api/#ancestor_context) and [parent](https://allmonday.github.io/pydantic - resolve/api/#parent).
+In addition, `pydantic - resolve` also provides `parent` to obtain the parent - node object and `ancestor_context` to obtain specific fields of ancestor nodes. These are functions generally not supported by current GraphQL frameworks. For specific usage methods, please refer to [ancestor_context](https://allmonday.github.io/pydantic-resolve/api/#ancestor_context) and [parent](https://allmonday.github.io/pydantic-resolve/api/#parent).
 
 To summarize:
 
@@ -394,19 +394,19 @@ To summarize:
 | Ancestor node  | Supported | Not supported   |
 | Dataloader     | Supported | Not supported   |
 
-## Differences in Front - End Query Methods
+## Differences in frontend Query Methods
 
-When using GraphQL, the front - end needs to maintain query statements. Although some people have hard - coded queries into RPC, these methods require additional technical complexity.
+When using GraphQL, the frontend needs to maintain query statements. Although some people have hard - coded queries into RPC, these methods require additional technical complexity.
 
 Generally, no one directly uses `fetch` to construct GraphQL queries. Usually, tools like Apollo Client are used for queries.
 
-In the current era of popular TypeScript, to generate front - end type definitions, code - generation tools such as GraphQL Code Generator and GraphQL TypeScript Generator are also needed.
+In the current era of popular TypeScript, to generate frontend type definitions, code - generation tools such as GraphQL Code Generator and GraphQL TypeScript Generator are also needed.
 
-In the Resolver pattern, with the help of FastAPI and Pydantic, the RESTful API can be directly converted into an SDK through OpenAPI 3.x. The front - end can directly call RPC methods and use type definitions. For example, `openapi - ts`.
+In the Resolver pattern, with the help of FastAPI and Pydantic, the RESTful API can be directly converted into an SDK through OpenAPI 3.x. The frontend can directly call RPC methods and use type definitions. For example, `openapi - ts`.
 
 The OpenAPI 3.x standard is a very mature standard, and the stability of various tools is also high. There is also Swagger to view API definitions and return types.
 
-In addition, the writing of the Resolver pattern is not complicated. It is even feasible for the front - end to assemble data itself (similar to the BFF pattern). Of course, it will be more convenient in a full - stack scenario.
+In addition, the writing of the Resolver pattern is not complicated. It is even feasible for the frontend to assemble data itself (similar to the BFF pattern). Of course, it will be more convenient in a full - stack scenario.
 
 | API                                   | Resolver     | GraphQL                           |
 | ------------------------------------- | ------------ | --------------------------------- |
@@ -465,12 +465,12 @@ It is precisely the post - processing ability that enables the Resolver to easil
 
 Here are some post - processing functions supported by the Resolver pattern:
 
-| Post - Processing Ability                                                                                     | Resolver             | GraphQL |
-| ------------------------------------------------------------------------------------------------------------- | -------------------- | ------- |
-| Modify current field data [post](https://allmonday.github.io/pydantic - resolve/api/#post)                    | Supported            | None    |
-| Read descendant data of the current node                                                                      | Supported            | None    |
-| Transfer data to a descendant node [collector](https://allmonday.github.io/pydantic - resolve/api/#collector) | Supported            | None    |
-| Hide fields during serialization                                                                              | Supported (pydantic) | None    |
+| Post - Processing Ability                                                                                   | Resolver             | GraphQL |
+| ----------------------------------------------------------------------------------------------------------- | -------------------- | ------- |
+| Modify current field data [post](https://allmonday.github.io/pydantic-resolve/api/#post)                    | Supported            | None    |
+| Read descendant data of the current node                                                                    | Supported            | None    |
+| Transfer data to a descendant node [collector](https://allmonday.github.io/pydantic-resolve/api/#collector) | Supported            | None    |
+| Hide fields during serialization                                                                            | Supported (pydantic) | None    |
 
 You can also view more examples in the code `app_post_process/rest.py`.
 
@@ -482,13 +482,13 @@ When refactoring with GraphQL, the biggest obstacle is the reluctance to modify 
 
 This means that once a field is provided, its basic structure is restricted and cannot be easily adjusted. Otherwise, all queries need to be audited to confirm the situation.
 
-Due to the flexibility of GraphQL, different teams use it in different ways. Some people construct back - end - friendly schemas based on the ER model, as in our demo. Others construct front - end - friendly schemas by integrating many post - processing processes based on the front - end view model. However, because GraphQL lacks a powerful post - processing ability, these two approaches cannot be combined.
+Due to the flexibility of GraphQL, different teams use it in different ways. Some people construct backend - friendly schemas based on the ER model, as in our demo. Others construct frontend - friendly schemas by integrating many post - processing processes based on the frontend view model. However, because GraphQL lacks a powerful post - processing ability, these two approaches cannot be combined.
 
 **Summary**: Due to the lack of a good post - processing method, GraphQL schema design is caught in a dilemma between prioritizing the ER model and the view model.
 
-Generally, the GraphQL schemas provided by platforms follow the former approach, i.e., they are designed in a way that is close to the ER model. The process of converting to front - end view data is left to the querying party.
+Generally, the GraphQL schemas provided by platforms follow the former approach, i.e., they are designed in a way that is close to the ER model. The process of converting to frontend view data is left to the querying party.
 
-In the Resolver pattern, since the view model consumed by the front - end is actually maintained on the back - end, developers clearly know how the fields are being used.
+In the Resolver pattern, since the view model consumed by the frontend is actually maintained on the backend, developers clearly know how the fields are being used.
 
 Thanks to the multiple entry points of RESTful and the good inheritance and extension mechanisms, adjustments to each interface will not affect other interfaces.
 
@@ -548,7 +548,7 @@ async def get_sprints():
 | ----------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Interface Design        | Based on URL paths and HTTP methods                       | Based on a single endpoint and typed Schema                              |
 | Data Retrieval          | Separate interfaces, static construction in internal code | Multiple resources can be retrieved in a single request, query on demand |
-| Flexibility             | Fixed return structure, can also flexibly define fields   | Front - end can customize query fields, higher flexibility               |
+| Flexibility             | Fixed return structure, can also flexibly define fields   | frontend can customize query fields, higher flexibility                  |
 | Documentation and Types | Swagger/OpenAPI 3.0, supports SDK generation              | Automatically generates Playground, strong type validation               |
 
 This project implements both Resolver and GraphQL interfaces to facilitate the comparison and learning of the usage methods, advantages, and disadvantages of the two.
@@ -557,17 +557,17 @@ This project implements both Resolver and GraphQL interfaces to facilitate the c
 
 Flexible, can perform queries, suitable for scenarios where flexible data queries are required.
 
-![image](https://github.com/user - attachments/assets/cf80c282 - b3bc - 472d - a584 - bbb73a213d4d)
+![image](https://github.com/user-attachments/assets/cf80c282-b3bc-472d-a584-bbb73a213d4d)
 
 ### Resolver
 
-Uses [pydantic - resolve](https://github.com/allmonday/pydantic - resolve).
+Uses [pydantic-resolve](https://github.com/allmonday/pydantic-resolve).
 
 Uses fewer technology stacks to construct equivalent data structures, suitable for internal API docking scenarios within a project.
 
-Tools like [https://github.com/hey - api/openapi - ts](https://github.com/hey - api/openapi - ts) can be used to generate front - end SDKs.
+Tools like [https://github.com/hey-api/openapi-ts](https://github.com/hey-api/openapi-ts) can be used to generate frontend SDKs.
 
-![image](https://github.com/user - attachments/assets/bb922804 - 5ed8 - 429c - b907 - a92bf3c4b3ed)
+![image](https://github.com/user-attachments/assets/bb922804-5ed8-429c-b907-a92bf3c4b3ed)
 
 ## Benchmark
 
@@ -575,7 +575,7 @@ Finally, using the Resolver pattern does not affect the performance of the inter
 
 You can easily refactor GraphQL code using the Resolver pattern. This process does not require much mental effort and will even streamline various codes.
 
-Therefore, for the scenario of **internal front - end to back - end API docking within a project**, the Resolver pattern is a reliable choice.
+Therefore, for the scenario of **internal frontend to backend API docking within a project**, the Resolver pattern is a reliable choice.
 
 `ab -c 50 -n 1000`
 
