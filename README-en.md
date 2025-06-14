@@ -18,7 +18,7 @@ The comparison scenarios include:
 
 ## Introduction
 
-GraphQL is an excellent API query tool widely used in various scenarios. However, it is not a one - size - fits - all solution and may encounter various problems in different scenarios. This article specifically analyzes the problems of GraphQL in the common scenario of "internal frontend to backend API docking within a project" and attempts to solve them one by one using the Resolver pattern based on `pydantic - resolve`.
+GraphQL is an excellent API query tool widely used in various scenarios. However, it is not a one - size - fits - all solution and may encounter various problems in different scenarios. This article specifically analyzes the problems of GraphQL in the common scenario of "internal frontend to backend API docking within a project" and attempts to solve them one by one using the Resolver pattern based on `pydantic-resolve`.
 
 Let's first briefly introduce what the Resolver pattern is: It is a pattern that, based on existing RESTful interfaces, extends the originally "generic" RESTful interfaces into RPC - like interfaces customized for frontend pages by introducing the concept of resolvers.
 
@@ -34,7 +34,7 @@ It can act as a BFF layer, and compared with traditional BFF tools, it is more i
 
 The specific details will be explained in the subsequent comparison.
 
-For more features of `pydantic - resolve`, please refer to [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve).
+For more features of `pydantic-resolve`, please refer to [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve).
 
 ## Starting the Project
 
@@ -382,7 +382,7 @@ return await Resolver(
 ).resolve([sprint1, sprint2] * 10)
 ```
 
-In addition, `pydantic - resolve` also provides `parent` to obtain the parent - node object and `ancestor_context` to obtain specific fields of ancestor nodes. These are functions generally not supported by current GraphQL frameworks. For specific usage methods, please refer to [ancestor_context](https://allmonday.github.io/pydantic-resolve/api/#ancestor_context) and [parent](https://allmonday.github.io/pydantic-resolve/api/#parent).
+In addition, `pydantic-resolve` also provides `parent` to obtain the parent - node object and `ancestor_context` to obtain specific fields of ancestor nodes. These are functions generally not supported by current GraphQL frameworks. For specific usage methods, please refer to [ancestor_context](https://allmonday.github.io/pydantic-resolve/api/#ancestor_context) and [parent](https://allmonday.github.io/pydantic-resolve/api/#parent).
 
 To summarize:
 
