@@ -397,34 +397,83 @@ return await Resolver(
 | 祖先节点     | 支持     | 不支持   |
 | dataloader   | 支持     | 不支持   |
 
-## 前端查询方式的差别 (draft)
+## 前端查询方式的差别
 
-graphql 前端需要维护 query 语句, 也有人把 query 固化成了 rpc， 但是这些都是堆积额外技术复杂度的做法
+使用 GraphQL，前端需要维护 query 语句, 虽然也有人把 query 固化成了 RPC，但是这些都是需要堆积额外技术复杂度的做法。
 
-resolver 借助 openapi3.0 可以生成 sdk， 直接提供 rpc 方法和类型定义
+一般不会有人直接使用 fetch 来构建 GraphQL query, 通常都会使用 Apollo client 之类的工具来查询。
 
-这里有个隐藏约定， 后端需要清晰知道前端所需的数据结构， 当然如果是全栈开发的话就没有这种问题了。
+另外在 TypeScript 流行的当下， 为了生成前端类型定义， 还需要借助 GraphQL code generator, GraphQL Typescript Generator 之类的生成工具。
 
-rersolver 模式的书写本身也不复杂， 甚至让前端自己过来拼装 （类似 bff）也很容易
+而在 Resolver 模式下，借助 FastAPI 和 pydantic， 通过 OpenAPI 3.x 可以直接把 RESTful API 生成 sdk，前端可以直接调用 rpc 方法和类型定义。 比如 openapi-ts。
 
-## 数据在每个节点的后处理，轻松构建视图数据 (draft)
+而 OpenAPI 3.x 标准是个非常成熟的标准， 各种工具的稳定性也很高。 还有 Swagger 可以查看 API 的定义和返回类型。
 
-先说明后处理方法的意义：
+另外， Rersolver 模式的书写本身也不复杂，甚至让前端自己过来拼装数据也是可行的（类似 BFF 模式），当然如果是全栈模式会更加便捷。
 
-- 可以在每层节点上修改字段， 或者读取子孙节点的数据， 来实现各种统计或者聚合操作
-- 可以对节点数据做跨层的移动， 调整
+| API             | Resolver | GraphQL          |
+| --------------- | -------- | ---------------- |
+| 提供 Query 语句 | 不需要   | 需要             |
+| 提供类型        | 支持     | 支持 (相对麻烦)  |
+| 生成 SDK        | 支持     | 支持（相对复杂） |
+
+## 数据在每个节点的后处理，轻松构建视图数据
+
+如果说前面的对比还是小打小闹的话， 那么后处理的能力是 Resolver 模式和 GraphQL 模式差异最大的部分。
+
+在 GraphQL 中，受限于它 Query 的功能， 后处理能力可以说是基本无法实现的。
+
+许多 GraphQL 框架最多只支持根节点上提供一个后处理的 middleware, 即所有数据都获取之后， 开发可以做一些处理.
+
+而在 Resolver 模式中， 每个节点都能够在子孙数据的处理完成之后， 提供 post hook 来做额外处理。
+
+这里先说明后处理方法的意义：
+
+- 可以在每层节点上，当其子孙字段都处理完毕之后，修改字段， 或者读取子孙节点的数据， 来实现各种统计或者聚合操作
+  - 比如根据 Task.done 的情况统计出 Story 的完成率
+- 可以对节点数据做跨层的移动，比如把 Task 节点移动到 Sprint 节点下面
+- 可以对节点做跨层的统计聚合，比如在 Sprint 中跨过 Story 层的中转就能统计出有多少 Task
+
+很遗憾在 GraphQL 的设计中， 后处理的概念是不存在的，
 
 使用 graphql 只能经历一个数据从上到下的获取过程， 想要实现每层的后处理是没有办法的， 比如我在 story 节点中是无法提前知道 tasks 中的内容的。
 
-并且 query 驱动 resolver 的方式约束了后处理方法中， 新增字段的可能。
+并且 Query 驱动 resolver 的方式约束了后处理方法中， 新增字段的可能。
 
-tip： 这里尝试使用 graphql 来曲线救国实现一些后处理字段
+比如在 Resolver 模式中， 可以使用 post_done_perc 方法， 获取 `self.taks` 信息， 然后计算出 done 的比例
 
-Resolver 借助 post_method 这个额外的 hook 方法，可以解决上述的所有问题， post hook 触发时， 节点的子孙节点都已经获取完毕
+```python
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel):  # how to pick fields..
+    id: int
+    name: str
+    point: int
 
-此时 story 是可以清楚知道自己 tasks 节点的所有数据的。
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
 
-另外还有跨层级的 collect 设计， 比如让所有的 tasks 节点都移动到 sprint 节点之中。
+    done_perc: float = 0.0
+    def post_done_perc(self):
+        if self.tasks:
+            done_count = sum(1 for task in self.tasks if task.done)
+            self.done_perc = done_count / len(self.tasks) * 100
+        else:
+            self.done_perc = 0.0
+```
+
+而在 GraphQL 中，哪怕由于某种能力支持了节点级别的后处理， 对于 done_perc 这种依赖于 tasks 的数据， 如果 Query 中只申明了 `done_perc` 却没有申明 `tasks` 的话， 那么 Query 驱动查询时， done_perc 就会因为没有 tasks 的数据报错。 如果硬要支持的话， 那么就需要某种静态分析过程把 done_perc 对于 tasks 的依赖提前分析出来。
+
+正是后处理的能力， 让 Resolver 获得轻松构建视图数据的能力，是的基于数据的二次构建和修改成为可能。
+
+这里罗列一些 Resolver 模式支持的后处理功能:
+
+| 后处理能力                                                                                          | Resolver        | GraphQL |
+| --------------------------------------------------------------------------------------------------- | --------------- | ------- |
+| 修改当前字段数据 [post](https://allmonday.github.io/pydantic-resolve/api/#post)                     | 支持            | 无      |
+| 读取当前节点的子孙数据                                                                              | 支持            | 无      |
+| 将数据传送到某个子孙节点下 [collector](https://allmonday.github.io/pydantic-resolve/api/#collector) | 支持            | 无      |
+| 在序列化中隐藏字段                                                                                  | 支持 (pydantic) | 无      |
 
 ## 架构和重构的区别 (draft)
 
