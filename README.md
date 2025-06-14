@@ -13,7 +13,7 @@
 - [x] 关联数据的获取和构建
 - [x] 查询参数的传递
 - [x] 前端查询方式的比较
-- [x] 数据在每一个节点的后处理, 最小成本构建试图数据
+- [x] 数据在每一个节点的后处理, 最小成本构建视图数据
 - [x] 架构和重构上的区别
 
 ## 介绍
@@ -87,14 +87,14 @@ query MyQuery {
     id
     name
     start
-    stories  // plaground 会飘红报错
+    stories  // playground 会飘红报错
   }
 }
 ```
 
 因为如果 stories 的字段还有对象类型的话， GraphQL 无法知道是否要继续展开。 因此本质上 Query 就是 Resolver 们的驱动查询的依据（配置）。
 
-而在 Resolver 模式中， **Query 语句被固化到了代码中**， 通过 pdyantic class 的继承和扩展来描述自己所期望的组合数据。
+而在 Resolver 模式中， **Query 语句被固化到了代码中**， 通过 pydantic class 的继承和扩展来描述自己所期望的组合数据。
 
 > 这种做法丧失了查询的灵活， 会更贴近于 RPC 的使用场景， 即文章开头所说的项目内部 API 对接场景， 让数据使用者不需要再额外承担一份查询语句的负担。
 > 那如何判断自己是不是这种场景？ 最简单的例子是如果你的 Query 把特定入口中的对象的所有字段都用到了， 那么你大概就属于这个场景了。
@@ -409,7 +409,7 @@ return await Resolver(
 
 而 OpenAPI 3.x 标准是个非常成熟的标准， 各种工具的稳定性也很高。 还有 Swagger 可以查看 API 的定义和返回类型。
 
-另外， Rersolver 模式的书写本身也不复杂，甚至让前端自己过来拼装数据也是可行的（类似 BFF 模式），当然如果是全栈模式会更加便捷。
+另外， Resolver 模式的书写本身也不复杂，甚至让前端自己过来拼装数据也是可行的（类似 BFF 模式），当然如果是全栈模式会更加便捷。
 
 | API             | Resolver | GraphQL          |
 | --------------- | -------- | ---------------- |
@@ -441,7 +441,7 @@ return await Resolver(
 
 并且 Query 驱动 resolver 的方式约束了后处理方法中， 新增字段的可能。
 
-比如在 Resolver 模式中， 可以使用 post_done_perc 方法， 获取 `self.taks` 信息， 然后计算出 done 的比例
+比如在 Resolver 模式中， 可以使用 post_done_perc 方法， 获取 `self.tasks` 信息， 然后计算出 done 的比例
 
 ```python
 @ensure_subset(BaseStory)
@@ -579,7 +579,7 @@ async def get_sprints():
 
 你可以轻松的使用 Resolver 重构 GraphQL 代码， 这个过程并不会有太多心智负担， 反而会精简各种代码。
 
-因此， 对于**项目内部前后端 API 对接** 的场景， Resolver 模式会是一种更好的选择。
+因此， 对于**项目内部前后端 API 对接** 的场景， Resolver 模式会是一种可靠的选择。
 
 `ab -c 50 -n 1000`
 
