@@ -1,1 +1,1 @@
-{"query":"query MyQuery {\n  sprints {\n    id\n    name\n    start\n    stories {\n      id\n      name\n      owner\n      point\n      tasks {\n        done\n        id\n        name\n        owner\n      }\n    }\n  }\n}","operationName":"MyQuery"}
+{"query":"query MyQuery {\n  sprints {\n    id\n    name\n    start\n    stories {\n      id\n      name\n      point\n      tasks {\n        done\n        id\n        name\n        owner\n      }\n    }\n  }\n}","operationName":"MyQuery"}

@@ -77,9 +77,9 @@ class SimpleStory(BaseModel):  # how to pick fields..
         return loader.load(self.id)
 
 class Sprint(BaseSprint):
-    stories: list[Story] = []
-    def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
-        return loader.load(self.id)
+    # stories: list[Story] = []
+    # def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
+    #     return loader.load(self.id)
 
     simple_stories: list[SimpleStory] = []
     def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
