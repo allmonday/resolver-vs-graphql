@@ -3,11 +3,10 @@ from pydantic import BaseModel
 from typing import List
 import datetime
 from aiodataloader import DataLoader
-from typing import List
+from typing import List, Dict
 from pydantic_resolve import LoaderDepend, ensure_subset
 from fastapi import APIRouter
 from pydantic_resolve import Resolver
-from pydantic import Field
 
 class BaseTask(BaseModel):
     id: int
@@ -77,18 +76,11 @@ class SimpleStory(BaseModel):  # how to pick fields..
         return loader.load(self.id)
 
 class Sprint(BaseSprint):
-    stories: list[Story] = []
-    def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
+
+    simple_stories: list[SimpleStory] = []
+    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
         return loader.load(self.id)
 
-    # simple_stories: list[SimpleStory] = []
-    # def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
-    #     return loader.load(self.id)
-
-class Tree(BaseModel):
-    id: int
-    children: list['Tree'] = Field(default_factory=list)
-    
 router = APIRouter()
 
 @router.get('/sprints', response_model=list[Sprint])
@@ -104,9 +96,3 @@ async def get_sprints():
         start=datetime.datetime(2025, 7, 1)
     )
     return await Resolver().resolve([sprint1, sprint2] * 10)
-
-@router.get('/tree', response_model=list[Tree])
-async def get_tree():
-    return [Tree(id=1, children=[
-        Tree(id=2, children=[Tree(id=3)])
-    ])]

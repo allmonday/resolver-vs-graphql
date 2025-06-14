@@ -1,3 +1,7 @@
+echo '------------ base test ------------'
+ab -c 50 -n 1000 http://localhost:8000/base-test
+
+
 echo '------------ rest + resolver ------------'
 ab -c 50 -n 1000 http://localhost:8000/sprints
 

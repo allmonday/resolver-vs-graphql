@@ -4,7 +4,6 @@ from typing import List, Dict
 import strawberry
 from strawberry.dataloader import DataLoader
 from strawberry.fastapi import GraphQLRouter, BaseContext
-from dataclasses import field
 
 # Mock database for tasks
 TASKS_DB = [
@@ -49,11 +48,6 @@ async def get_context_dependency() -> CustomContext:
 
 
 @strawberry.type
-class Tree:
-    id: int
-    children: list['Tree'] = field(default_factory=list)
-
-@strawberry.type
 class Task:
     id: int
     name: str
@@ -68,16 +62,20 @@ class Story:
     point: int
     @strawberry.field
     async def tasks(self, info: strawberry.Info) -> List["Task"]:
-        return await info.context.task_loader.load(self.id)
+        tasks = await info.context.task_loader.load(self.id)
+        return tasks
 
 @strawberry.type
 class Sprint:
     id: int
     name: str
     start: datetime.datetime
+    task_count: int = 0
     @strawberry.field
     async def stories(self, info: strawberry.Info) -> List["Story"]:
-        return await info.context.story_loader.load(self.id)
+        stories = await info.context.story_loader.load(self.id)
+        return stories
+
 
 @strawberry.type
 class Query:
@@ -98,12 +96,6 @@ class Query:
             start=datetime.datetime(2025, 7, 1)
         )
         return [sprint1, sprint2] * 10
-
-    @strawberry.field
-    def tree(self) -> List[Tree]:
-        return [Tree(id=1, children=[
-            Tree(id=2, children=[Tree(id=3)])
-        ])]
 
 schema = strawberry.Schema(query=Query)
 
