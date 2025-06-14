@@ -76,10 +76,11 @@ class SimpleStory(BaseModel):  # how to pick fields..
         return loader.load(self.id)
 
 class Sprint(BaseSprint):
-
     simple_stories: list[SimpleStory] = []
-    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
-        return loader.load(self.id)
+    async def resolve_simple_stories(self, context, loader=LoaderDepend(StoryLoader)):
+        stories = await loader.load(self.id)
+        stories = [s for s in stories if s.id in context['story_ids']]
+        return stories
 
 router = APIRouter()
 
@@ -95,4 +96,6 @@ async def get_sprints():
         name="Sprint 2",
         start=datetime.datetime(2025, 7, 1)
     )
-    return await Resolver().resolve([sprint1, sprint2] * 10)
+    return await Resolver(
+        context={'story_ids': [1, 2, 3]},
+    ).resolve([sprint1, sprint2] * 10)

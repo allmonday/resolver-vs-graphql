@@ -72,9 +72,9 @@ class Sprint:
     start: datetime.datetime
     task_count: int = 0
     @strawberry.field
-    async def stories(self, info: strawberry.Info) -> List["Story"]:
+    async def stories(self, info: strawberry.Info, ids: list[int]) -> List["Story"]:
         stories = await info.context.story_loader.load(self.id)
-        return stories
+        return [s for s in stories if s.id in ids]
 
 
 @strawberry.type

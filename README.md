@@ -49,8 +49,6 @@ GraphQL 是一个优秀的 API 查询工具， 广泛应用在许多场景中使
 2. 启动服务：
    ```sh
    uvicorn app.main:app --reload
-
-   uvicorn app_post_process.main:app --reload
    ```
 3. 打开 [http://localhost:8000/graphql](http://localhost:8000/graphql) 访问 GraphQL playground。
 4. 打开 [http://localhost:8000/docs](http://localhost:8000/docs) 查看 Resolver 模式
@@ -58,6 +56,10 @@ GraphQL 是一个优秀的 API 查询工具， 广泛应用在许多场景中使
 
 
 ## 1. 数据获取和组合
+
+```sh
+uvicorn app.main:app --reload
+```
 
 Resolver 本身就是 GraphQL 的两个核心特色之一 （另一个是 Query 功能）， 通过 Resolver 和 dataloader， GraphQL 能够自由组合数据
 
@@ -98,6 +100,7 @@ query MyQuery {
 而在 Resolver 模式中， **Query 语句被固化到了代码中**， 通过 pdyantic class 的继承和扩展来描述自己所期望的组合数据。
 
 > 这种做法丧失了查询的灵活， 会更贴近于 RPC 的使用场景， 即文章开头所说的项目内部 API 对接场景， 让数据使用者不需要再额外承担一份查询语句的负担。
+> 那如何判断自己是不是这种场景？ 最简单的例子是如果你的 Query 把特定入口中的对象的所有字段都用到了， 那么你大概就属于这个场景了。
 
 如果直接继承 BaseStory 那么所有 BaseStory 的字段都会被返回， 也可以自己定义一个新的类， 把所需的字段申明在里面， 同时提供了 `@ensure_subset` 装饰器来额外保证字段名是 BaseStory 中真实存在的。
 
@@ -251,7 +254,92 @@ async def get_tree():
 
 ## 查询参数的传递 (draft)
 
-graphql 可以在每个节点传递参数
+```sh
+uvicorn app_filter.main:app --reload
+```
+
+graphql 可以在每个节点接收参数，每个 resolver 都能够接受一组 params
+
+```python
+@strawberry.type
+class Sprint:
+    id: int
+    name: str
+    start: datetime.datetime
+    task_count: int = 0
+    @strawberry.field
+    async def stories(self, info: strawberry.Info, ids: list[int]) -> List["Story"]:
+        stories = await info.context.story_loader.load(self.id)
+        return [s for s in stories if s.id in ids]
+```
+
+不过在实际使用中， 为了方便动态设置， 一般都会放到顶部集中管理：
+
+```graphql
+// query
+query MyQuery($ids: [Int!]!) {
+  sprints {
+    start
+    name
+    id
+    stories(ids: $ids) {
+      id
+      name
+      owner
+      point
+      tasks {
+        done
+        id
+        name
+        owner
+      }
+    }
+  }
+}
+
+// variables
+{
+  "ids": [1]
+}
+```
+
+这里隐含了一种参数集中化管理的设计思路，虽然参数的消费者在各个节点上，但是可以通过约定变量别名来集中获取。
+
+Resolver 模式下， 因为查询本来就是通过代码提前“固化” 下来的， 所以可以通过 context 这种全局变量来提供所有的参数：
+
+```python
+class Sprint(BaseSprint):
+    simple_stories: list[SimpleStory] = []
+    async def resolve_simple_stories(self, context, loader=LoaderDepend(StoryLoader)):
+        stories = await loader.load(self.id)
+        stories = [s for s in stories if s.id in context['story_ids']]
+        return stories
+
+@router.get('/sprints', response_model=list[Sprint])
+async def get_sprints():
+    sprint1 = Sprint(
+        id=1,
+        name="Sprint 1",
+        start=datetime.datetime(2025, 6, 12)
+    )
+    sprint2 = Sprint(
+        id=2,
+        name="Sprint 2",
+        start=datetime.datetime(2025, 7, 1)
+    )
+    return await Resolver(
+        context={'story_ids': [1, 2, 3]},
+    ).resolve([sprint1, sprint2] * 10)
+```
+
+在形式上和 GraphQL 的做法是等价的。
+
+到这里你也许注意到提供的 ids 的用法中， 获取了 stories 之后再通过代码来过滤是一种非常低效的做法， 更好的方式显然是传递给 Data
+
+
+
+
+
 
 resolver 可以在 resolver 的 context 中集中管理查询参数
 
