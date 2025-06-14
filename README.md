@@ -2,47 +2,47 @@
 
 [EN](./README-en.md)
 
-这是一个基于 FastAPI 的 Resolver 模式和 GraphQL (strawberry) 模式的比较项目
+这是一个基于 FastAPI 的 Resolver 模式和 GraphQL (strawberry) 模式的对比项目。
 
-关注的是**项目内部前后端之间 API 调用**场景下的最佳开发模式。 （也适用于 BFF backend for frontend 这种场景）
+关注的是**项目内部前后端 API 调用**场景下的最佳开发模式（同样适用于 BFF backend for frontend 场景）。
 
-> 默认读者熟悉 GraphQL 和 RESTful，这里不会过多介绍。
+> 默认读者已熟悉 GraphQL 和 RESTful，本文不再赘述基础概念。
 
-比较的场景有以下这些：
+比较的场景包括：
 
-- [x] 关联数据的获取和构建
+- [x] 关联数据的获取与构建
 - [x] 查询参数的传递
 - [x] 前端查询方式的比较
-- [x] 数据在每一个节点的后处理, 最小成本构建视图数据
-- [x] 架构和重构上的区别
+- [x] 数据在每个节点的后处理，最小成本构建视图数据
+- [x] 架构与重构的区别
 
 ## 介绍
 
-GraphQL 是一个优秀的 API 查询工具， 广泛应用在许多场景中使用。 但它也不是银弹， 根据具体场景不同， 也存在着各式各样的问题。
-这里专门针对 `项目内部前后端 API 对接 ` 这种常见场景， 分析 GraphQL 存在的问题， 并尝试使用基于 `pydantic-resolve` 的 Resolver 模式来逐一解决。
+GraphQL 是一个优秀的 API 查询工具，广泛应用于各种场景。但它并非万能，针对不同场景也会遇到各种问题。
+本文专门针对“项目内部前后端 API 对接”这一常见场景，分析 GraphQL 存在的问题，并尝试用基于 `pydantic-resolve` 的 Resolver 模式逐一解决。
 
-先简单介绍一下什么是 Resolver 模式， 这是一种基于当前已有的 RESTful 接口， 通过引入 resolver 的概念， 将原本 "通用" 的 RESTful 接口， 扩展构建成类似 RPC 的， 为前端页面专供数据的接口。
+先简单介绍一下什么是 Resolver 模式：这是一种基于现有 RESTful 接口，通过引入 resolver 概念，将原本“通用”的 RESTful 接口扩展为类似 RPC 的、专为前端页面定制数据的接口。
 
-在 Resolver 模式中， 我们基于 Pydantic 类来扩展，组合数据
+在 Resolver 模式中，我们基于 Pydantic 类进行扩展和数据组合。
 
-比如 Story 可以直接继承 BaseStory 所有的字段， 也可以使用 `@ensure_subset(BaseStory)` 加上自定义字段来实现类似 GraphQL 中挑选字段的功能。
+例如，Story 可以直接继承 BaseStory 的所有字段，也可以通过 `@ensure_subset(BaseStory)` 并添加自定义字段，实现类似 GraphQL 挑选字段的功能。
 
-并且可以通过 resolve method + DataLoader 来层层拼装数据。
+还可以通过 resolve 方法和 DataLoader 层层拼装数据。
 
-用通俗的说法就是， 通过定义 pydantic 类 + 提供入口的根数据， 使得接口可以提供精确满足前端需求的视图数据。
+通俗来说，就是通过定义 pydantic 类并提供根数据入口，使接口能够精确满足前端对视图数据的需求。
 
-它可以扮演类似 BFF 层的角色， 而且比其他传统的 BFF 工具， 它在构建视图数据的过程中比较有创意的，给每层节点都引入了 “后处理” 的方法， 使得许多原本需要遍历展开的汇总计算都变得易如反掌。
+它可以扮演类似 BFF 层的角色，并且相比传统 BFF 工具，在构建视图数据的过程中更具创新性——为每层节点都引入了“后处理”方法，使许多原本需要遍历展开的汇总计算变得易如反掌。
 
-具体的细节会在后续的对比中说明。
+具体细节将在后文的对比中详细说明。
 
-更多关于 pydantic-resolve 的功能请移步 [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
+更多关于 pydantic-resolve 的功能，请参见 [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
 
 ## 启动项目
 
 1. 安装依赖：
    ```sh
    python -m venv venv
-   source venv/bin/activate  # windows 自行替换
+   source venv/bin/activate  # windows 用户请自行替换
    pip install -r requirement.txt
    ```
 2. 启动服务：
