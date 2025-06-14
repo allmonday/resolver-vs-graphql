@@ -6,7 +6,7 @@ from aiodataloader import DataLoader
 from typing import List
 from pydantic_resolve import LoaderDepend, ensure_subset
 from fastapi import APIRouter
-from pydantic_resolve import Resolver
+from pydantic_resolve import Resolver, Collector, ICollector
 from pydantic import Field
 
 class BaseTask(BaseModel):
@@ -30,7 +30,7 @@ class BaseSprint(BaseModel):
 TASKS_DB = [
     {"id": 1, "name": "Task 1", "owner": 201, "done": False, "story_id": 1},
     {"id": 2, "name": "Task 2", "owner": 202, "done": True, "story_id": 2},
-    {"id": 3, "name": "Task 3", "owner": 203, "done": False, "story_id": 1},
+    {"id": 3, "name": "Task 3", "owner": 203, "done": True, "story_id": 1},
 ]
 
 # Mock database for stories
@@ -59,15 +59,10 @@ class StoryLoader(DataLoader):
         return [sprint_id_to_stories[sid] for sid in sprint_ids]
 
 
-# ---- business model ------
-class Story(BaseStory):
-    tasks: list[BaseTask] = []
-    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
-        return loader.load(self.id)
-    
-
 @ensure_subset(BaseStory)
 class SimpleStory(BaseModel):  # how to pick fields..
+    __pydantic_resolve_collect__ = {'tasks': ('task_count', 'task_count2')}  # send tasks to collectors
+
     id: int
     name: str
     point: int
@@ -80,36 +75,34 @@ class SimpleStory(BaseModel):  # how to pick fields..
     def post_done_perc(self):
         if self.tasks:
             done_count = sum(1 for task in self.tasks if task.done)
-            self.done_perc = done_count / len(self.tasks) * 100
+            return done_count / len(self.tasks) * 100
         else:
-            self.done_perc = 0.0
+            return 0
+
+class TaskCounter(ICollector):
+    def __init__(self, alias: str):
+        self.alias = alias
+        self.count = 0
+
+    def add(self, val) -> None:
+        self.count += len(val) 
+    
+    def values(self):
+        return self.count
 
 class Sprint(BaseSprint):
     simple_stories: list[SimpleStory] = []
     def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
         return loader.load(self.id)
-
-
-# yet another way
-class Query(BaseModel):
-    sprints: list[Sprint] = []
-    async def resolve_sprints(self):
-        sprint1 = Sprint(
-            id=1,
-            name="Sprint 1",
-            start=datetime.datetime(2025, 6, 12)
-        )
-        sprint2 = Sprint(
-            id=2,
-            name="Sprint 2",
-            start=datetime.datetime(2025, 7, 1)
-        )
-        return [sprint1, sprint2]
-
-class Tree(BaseModel):
-    id: int
-    children: list['Tree'] = Field(default_factory=list)
     
+    task_count: int = 0
+    def post_task_count(self, collector=Collector(alias='task_count', flat=True)):
+        return len(collector.values())  # this can be optimized further
+
+    task_count2: int = 0
+    def post_task_count2(self, collector=TaskCounter(alias='task_count2')):
+        return collector.values() 
+
 router = APIRouter()
 
 @router.get('/sprints', response_model=list[Sprint])
@@ -125,9 +118,3 @@ async def get_sprints():
         start=datetime.datetime(2025, 7, 1)
     )
     return await Resolver().resolve([sprint1, sprint2] * 10)
-
-@router.get('/tree', response_model=list[Tree])
-async def get_tree():
-    return [Tree(id=1, children=[
-        Tree(id=2, children=[Tree(id=3)])
-    ])]

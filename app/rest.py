@@ -69,7 +69,11 @@ class Story(BaseStory):
 @ensure_subset(BaseStory)
 class SimpleStory(BaseModel):  # how to pick fields..
     id: int
+
     name: str
+    def resolve_name(self, ancestor_context):
+        return f'{ancestor_context["sprint_name"]} - {self.name}'
+
     point: int
 
     tasks: list[BaseTask] = []
@@ -77,16 +81,14 @@ class SimpleStory(BaseModel):  # how to pick fields..
         return loader.load(self.id)
 
 class Sprint(BaseSprint):
-    # stories: list[Story] = []
-    # def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
-    #     return loader.load(self.id)
+    __pydantic_resolve_expose__ = {'name': 'sprint_name'}
 
     simple_stories: list[SimpleStory] = []
     def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
         return loader.load(self.id)
 
 
-# yet another way
+# yet another way, you can even mimic the GraphQL response structure (data, error)
 class Query(BaseModel):
     sprints: list[Sprint] = []
     async def resolve_sprints(self):
@@ -121,6 +123,10 @@ async def get_sprints():
         start=datetime.datetime(2025, 7, 1)
     )
     return await Resolver().resolve([sprint1, sprint2] * 10)
+
+@router.get('/sprints-query', response_model=Query)
+async def get_sprints_query():
+    return await Resolver().resolve(Query())
 
 @router.get('/tree', response_model=list[Tree])
 async def get_tree():

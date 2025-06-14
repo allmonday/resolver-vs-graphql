@@ -1,4 +1,4 @@
-# Resolver vs. GraphQL （wip)
+# Resolver vs. GraphQL
 
 [EN](./README-en.md)
 
@@ -14,7 +14,7 @@
 - [x] 查询参数的传递
 - [x] 前端查询方式的比较
 - [x] 数据在每一个节点的后处理, 最小成本构建试图数据
-- [ ] 架构和重构上的区别
+- [x] 架构和重构上的区别
 
 ## 介绍
 
@@ -416,6 +416,7 @@ return await Resolver(
 | 提供 Query 语句 | 不需要   | 需要             |
 | 提供类型        | 支持     | 支持 (相对麻烦)  |
 | 生成 SDK        | 支持     | 支持（相对复杂） |
+| 修改后前端感知  | 强       | 相对弱           |
 
 ## 数据在每个节点的后处理，轻松构建视图数据
 
@@ -457,9 +458,9 @@ class SimpleStory(BaseModel):  # how to pick fields..
     def post_done_perc(self):
         if self.tasks:
             done_count = sum(1 for task in self.tasks if task.done)
-            self.done_perc = done_count / len(self.tasks) * 100
+            return done_count / len(self.tasks) * 100
         else:
-            self.done_perc = 0.0
+            return 0.0
 ```
 
 而在 GraphQL 中，哪怕由于某种能力支持了节点级别的后处理， 对于 done_perc 这种依赖于 tasks 的数据， 如果 Query 中只申明了 `done_perc` 却没有申明 `tasks` 的话， 那么 Query 驱动查询时， done_perc 就会因为没有 tasks 的数据报错。 如果硬要支持的话， 那么就需要某种静态分析过程把 done_perc 对于 tasks 的依赖提前分析出来。
@@ -475,24 +476,75 @@ class SimpleStory(BaseModel):  # how to pick fields..
 | 将数据传送到某个子孙节点下 [collector](https://allmonday.github.io/pydantic-resolve/api/#collector) | 支持            | 无      |
 | 在序列化中隐藏字段                                                                                  | 支持 (pydantic) | 无      |
 
-## 架构和重构的区别 (draft)
+也可以查看代码 `app_post_process/rest.py` 中的更多例子。
 
-graphql 重构的时候， 最大的障碍是不知道 schema 中哪些字段被查询了， 哪些没有被查询。
+## 架构设计的区别
+
+这个环节聊聊 GraphQL 在项目迭代中的使用感受。
+
+GraphQL 在重构的时候， 最大的阻碍是不敢修改已有的 schema， 因为不知道 schema 中哪些字段被查询了， 哪些没有被查询。
 
 这就导致只要是提供过的字段， 基本结构就被约束住不能轻易调整了， 否则就要 audit 所有查询确认情况。
 
-在 Resolver 中， 因为实际查询是维护在后端的， 所以字段的使用情况开发是清清楚楚的。
+因为 GraphQL 的灵活性， 不同的 team 使用方式也各不相同， 有些人会根据 ER 模型， 比如我们的 demo 中那样， 构建后端比较友好的 schema， 也有人会根据前端的视图模型， 糅合许多后处理的过程， 构建前端更友好的 schema, 但这两种思路因为 GraphQL 缺少强大的后处理能力， 无法结合到一起。
 
-另外得益于 rest 的多入口和继承，扩展机制， 可以做到每个接口的调整， 不会影响到其他接口
+**总结**： GraphQL 因为缺失了良好的后处理方法， 会导致 schema 设计陷入 ER model 优先还是 view model 优先两难的境地。
 
-在架构上， Resolver 机制匹配了 ER 模型 -> 视图模型过程中， 结构不变型逐渐递减的客观情况
+一般平台提供的 GraphQL schema 都是遵循前者， 即贴近 ER 模型的方式设计的。 把转换到前端视图数据的过程委托给查询方来处理。
 
-Base 类型稳定， 通过继承获取， 关联数据按照需要来拼装 (resolve), 而多变的视图层需求则让 post 阶段去做各种微调。
-Resolver 方式可以做到在符合 ER 模型的基础上， 流畅地构建出各种个样的业务所需的具体视图数据
+而在 Resolver 模式中， 因为前端消费的视图模型实际上是维护在后端的， 所以字段的使用情况开发是清清楚楚的。
 
-GraphQL 因为缺失了良好的后处理方法， 会导致 schema 设计陷入 ER model 优先还是 view model 优先两难的境地。
+得益于 RESTful 的多入口，以及良好的和继承，扩展机制， 可以做到每个接口的调整， 都不会影响到其他接口。
 
-tips：更多的案例
+在架构上， Resolver 模式匹配了 ER 模型 -> 视图模型过程中， 结构稳定性逐渐递减的客观情况。
+
+ER 模型的 Base 类型非常稳定， 通过继承和关联数据按照需要来拼装出业务对象, 再通过后处理过程调整出视图对象。
+
+于是，Resolver 方式可以做到在符合 ER 模型的基础上， 流畅地构建出各种个样的业务所需的具体视图数据。
+
+**总结**： Resolver 模式在 ER 模型的基础上， 通过具体业务拼装数据， 然后使用后处理把数据微调成期望的视图数据。 提供了良好的可读性和可维护性。
+
+## 彩蛋
+
+那怎么给 GraphQL 添加后处理方法呢？
+
+这里提供一种有趣的思路，删除所有的 resolve 方法，删除所有的 Dataloader， 直接把 GraphQL 的查询结果作为输入数据。
+
+然后保留所有的 post 方法， 让他们将数据转换成期望的视图对象。
+
+> 因为 pydantic 本身就拥有加载嵌套数据的能力
+
+```python
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel):  # how to pick fields..
+    __pydantic_resolve_collect__ = {'tasks': ('task_count', 'task_count2')}  # send tasks to collectors
+
+    id: int
+    name: str
+    point: int
+    tasks: list[BaseTask]
+
+    done_perc: float = 0.0
+    def post_done_perc(self):
+        if self.tasks:
+            done_count = sum(1 for task in self.tasks if task.done)
+            return done_count / len(self.tasks) * 100
+        else:
+            return 0
+
+class Sprint(BaseSprint):
+    simple_stories: list[SimpleStory]
+    task_count: int = 0
+    def post_task_count(self, collector=Collector(alias='task_count', flat=True)):
+        return len(collector.values())  # this can be optimized further
+
+
+@router.get('/sprints', response_model=list[Sprint])
+async def get_sprints():
+    sprints = await graphql_api_provider.query_sprints() # read from graphql res.data
+    sprints = [Sprint.model_validate(s) for s in sprints]
+    return await Resolver().resolve(sprints)
+```
 
 ## Resolver 与 GraphQL 模式对比
 
