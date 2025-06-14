@@ -4,22 +4,23 @@
 
 这是一个基于 FastAPI 的 Resolver 模式和 GraphQL (strawberry) 模式的比较项目
 
-关注的是**项目内部前后端之间 API 调用**的最佳开发模式。
+关注的是**项目内部前后端之间 API 调用**场景下的最佳开发模式。 （也适用于 BFF backend for frontend 这种场景）
 
-> 这里不会去过多介绍 GraphQL (strawberry) 的概念和使用方式，
+> 默认读者熟悉 GraphQL 和 RESTful，这里不会过多介绍。
 
-比较的场景有这些：
+比较的场景有以下这些：
 
 - [x] 关联数据的获取和构建
+- [ ] 前端查询方式的比较
 - [ ] 数据在每一个节点的后处理, 最小成本构建试图数据
-- [ ] 前端查询方式的简化
 - [ ] 重构上的区别
 
 ## 介绍
 
-GraphQL 是一个优秀的 API 查询工具， 被人广泛在各个场景中使用。 但他也不是银弹， 根据具体使用的场景不同， 也存在着各式各样的问题， 这里专门针对 `项目内部前后端 API 对接 ` 这种常见场景， 分析 GraphQL 存在的问题， 并且尝试使用基于 `pydantic-resolve` 的 Resolver 模式来逐一解决。
+GraphQL 是一个优秀的 API 查询工具， 广泛应用在许多场景中使用。 但它也不是银弹， 根据具体场景不同， 也存在着各式各样的问题。
+这里专门针对 `项目内部前后端 API 对接 ` 这种常见场景， 分析 GraphQL 存在的问题， 并尝试使用基于 `pydantic-resolve` 的 Resolver 模式来逐一解决。
 
-先简单介绍一下什么是 Resolver 模式， 这是一种基于当前已有的 RESTful 接口， 通过引入 GraphQL Resolver 的概念， 将原本 "通用" 的 RESTful 接口， 扩展构建成类似 RPC 的， 为前端页面专供数据的接口。
+先简单介绍一下什么是 Resolver 模式， 这是一种基于当前已有的 RESTful 接口， 通过引入 resolver 的概念， 将原本 "通用" 的 RESTful 接口， 扩展构建成类似 RPC 的， 为前端页面专供数据的接口。
 
 在 Resolver 模式中， 我们基于 Pydantic 类来扩展，组合数据
 
@@ -29,16 +30,19 @@ GraphQL 是一个优秀的 API 查询工具， 被人广泛在各个场景中使
 
 用通俗的说法就是， 通过定义 pydantic 类 + 提供入口的根数据， 使得接口可以提供精确满足前端需求的视图数据。
 
-它可以扮演类似 BFF 层的角色， 而且比其他传统的 BFF 工具， 它在构建视图数据的过程中比较有创意的，给每层节点都引入了 “后处理” 的方法， 使得许多原本需要遍历展开的汇总计算都变得一如反掌。
+它可以扮演类似 BFF 层的角色， 而且比其他传统的 BFF 工具， 它在构建视图数据的过程中比较有创意的，给每层节点都引入了 “后处理” 的方法， 使得许多原本需要遍历展开的汇总计算都变得易如反掌。
+
+具体的细节会在后续的对比中说明。
 
 更多关于 pydantic-resolve 的功能请移步 [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
 
-> 方便期间， 之后的描述中 Resolver 模式会简写为 Resolver 模式
 
-## 启动
+## 启动项目
 
 1. 安装依赖：
    ```sh
+   python -m venv venv
+   source venv/bin/activate  # windows 自行替换
    pip install -r requirement.txt
    ```
 2. 启动服务：
@@ -54,7 +58,7 @@ GraphQL 是一个优秀的 API 查询工具， 被人广泛在各个场景中使
 
 ## 1. 数据获取和组合
 
-这是 GraphQL 的两个核心特色之一 （另一个是 Query 功能）， 通过 Resolver 和 dataloader， GraphQL 能够自由得组合数据
+Resolver 本身就是 GraphQL 的两个核心特色之一 （另一个是 Query 功能）， 通过 Resolver 和 dataloader， GraphQL 能够自由组合数据
 
 GraphQL 中， 数据的定义可以是 Graph 的， 但事实上具体到每个查询， Query 的结构是树状的， 这也是为何不允许查询中只写对象名字但是不提供具体字段的原因
 
@@ -88,11 +92,11 @@ query MyQuery {
 }
 ```
 
-因为这种状态会导致死循环的发生。
+因为如果 stories 的字段还有对象类型的话， GraphQL 无法知道是否要继续展开。 因此本质上 Query 就是 Resolver 们的驱动查询的依据（配置）。
 
-在 Resolver 模式中， **Query 语句被固化到了代码中**， 通过 pdyantic class 的继承和扩展来描述自己所期望的组合数据。
+而在 Resolver 模式中， **Query 语句被固化到了代码中**， 通过 pdyantic class 的继承和扩展来描述自己所期望的组合数据。
 
-> 这种做法丧失了查询的灵活动， 更贴近于 RPC 的使用场景， 即文章开头所说的项目内部 API 对接场景， 让数据使用者不需要再额外承担一份查询语句的负担。
+> 这种做法丧失了查询的灵活， 会更贴近于 RPC 的使用场景， 即文章开头所说的项目内部 API 对接场景， 让数据使用者不需要再额外承担一份查询语句的负担。
 
 如果直接继承 BaseStory 那么所有 BaseStory 的字段都会被返回， 也可以自己定义一个新的类， 把所需的字段申明在里面， 同时提供了 `@ensure_subset` 装饰器来额外保证字段名是 BaseStory 中真实存在的。
 
@@ -119,7 +123,7 @@ class Sprint(BaseSprint):
         return loader.load(self.id)
 ```
 
-另一个和 GraphQL 概念不同的地方是， GraphQL 的输入是用户查询语句， Resolver 的输入数据是根结点数据， 直接这么说也许有点抽象， 从代码上对比会比较形象一些：
+另一个和 GraphQL 概念不同的地方是， GraphQL 的输入是用户查询语句， Resolver 的输入数据是根节点数据， 直接这么说也许有点抽象， 从代码上对比会比较形象一些：
 
 在 GraphQL 中，当用户查询 sprints 时， 根数据的获取是发生在 sprints 方法内的。
 
@@ -181,6 +185,30 @@ async def get_base_sprints():
     return [sprint1, sprint2] * 10
 ```
 
+当然， 如果你想模仿 GraphQL 那种形式的话， 也很容易：
+
+```python
+class Query(BaseModel):
+    sprints: list[Sprint] = []
+    async def resolve_sprints(self):
+        sprint1 = Sprint(
+            id=1,
+            name="Sprint 1",
+            start=datetime.datetime(2025, 6, 12)
+        )
+        sprint2 = Sprint(
+            id=2,
+            name="Sprint 2",
+            start=datetime.datetime(2025, 7, 1)
+        )
+        return [sprint1, sprint2]
+
+# resolve
+await Resolver().resolve(Query())
+```
+
+就好了。
+
 Resolver 的另一个能力是处理自引用类型数据的能力， 
 因为不用像 GraphQL 那样提供 Query 语句， 所以自引用类型（比如 Tree） 这类数据的构建逻辑可以完全交给后端来管理
 
@@ -206,9 +234,19 @@ query MyQuery {
 }
 ```
 
-这种非常深的查询语句。
+这种非常深的查询语句， 同时也可能出现描述深度不够， 要继续调整查询的可能。
 
-作为对比在 Resolver 或者说传统 RESTful 模式下， 只要简单 `curl http://localhost:8000/tree` 就搞定了。
+作为对比在 Resolver 或者说传统 RESTful 模式下, 只要定义好类型和返回值：
+
+```python
+@router.get('/tree', response_model=list[Tree])
+async def get_tree():
+    return [Tree(id=1, children=[
+        Tree(id=2, children=[Tree(id=3)])
+    ])]
+```
+
+然后简单 `curl http://localhost:8000/tree` 就搞定了。 深度问题交给后端具体逻辑去解决。
 
 ## Resolver 与 GraphQL 模式对比
 

@@ -81,9 +81,26 @@ class Sprint(BaseSprint):
     def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
         return loader.load(self.id)
 
-    # simple_stories: list[SimpleStory] = []
-    # def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
-    #     return loader.load(self.id)
+    simple_stories: list[SimpleStory] = []
+    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+        return loader.load(self.id)
+
+
+# yet another way
+class Query(BaseModel):
+    sprints: list[Sprint] = []
+    async def resolve_sprints(self):
+        sprint1 = Sprint(
+            id=1,
+            name="Sprint 1",
+            start=datetime.datetime(2025, 6, 12)
+        )
+        sprint2 = Sprint(
+            id=2,
+            name="Sprint 2",
+            start=datetime.datetime(2025, 7, 1)
+        )
+        return [sprint1, sprint2]
 
 class Tree(BaseModel):
     id: int
