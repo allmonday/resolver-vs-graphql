@@ -464,7 +464,7 @@ class SimpleStory(BaseModel):  # how to pick fields..
 
 而在 GraphQL 中，哪怕由于某种能力支持了节点级别的后处理， 对于 done_perc 这种依赖于 tasks 的数据， 如果 Query 中只申明了 `done_perc` 却没有申明 `tasks` 的话， 那么 Query 驱动查询时， done_perc 就会因为没有 tasks 的数据报错。 如果硬要支持的话， 那么就需要某种静态分析过程把 done_perc 对于 tasks 的依赖提前分析出来。
 
-正是后处理的能力， 让 Resolver 获得轻松构建视图数据的能力，是的基于数据的二次构建和修改成为可能。
+正是后处理的能力， 让 Resolver 获得轻松构建视图数据的能力，使基于数据的二次构建和修改成为可能。
 
 这里罗列一些 Resolver 模式支持的后处理功能:
 
@@ -488,7 +488,6 @@ graphql 重构的时候， 最大的障碍是不知道 schema 中哪些字段被
 在架构上， Resolver 机制匹配了 ER 模型 -> 视图模型过程中， 结构不变型逐渐递减的客观情况
 
 Base 类型稳定， 通过继承获取， 关联数据按照需要来拼装 (resolve), 而多变的视图层需求则让 post 阶段去做各种微调。
-
 Resolver 方式可以做到在符合 ER 模型的基础上， 流畅地构建出各种个样的业务所需的具体视图数据
 
 GraphQL 因为缺失了良好的后处理方法， 会导致 schema 设计陷入 ER model 优先还是 view model 优先两难的境地。
@@ -523,6 +522,12 @@ tips：更多的案例
 ![image](https://github.com/user-attachments/assets/bb922804-5ed8-429c-b907-a92bf3c4b3ed)
 
 ## Benchmark
+
+最后， 使用 Resolver 模式并不会影响接口的性能， 反而可以变得更快。
+
+你可以轻松的使用 Resolver 重构 GraphQL 代码， 这个过程并不会有太多心智负担， 反而会精简各种代码。
+
+因此， 对于**项目内部前后端 API 对接** 的场景， Resolver 模式会是一种更好的选择。
 
 `ab -c 50 -n 1000`
 
