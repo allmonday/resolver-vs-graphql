@@ -473,6 +473,14 @@ return await Resolver(
 
 而在 Resolver 模式中， 每个节点都能够在子孙数据的处理完成之后， 提供 post hook 来做额外处理。
 
+这是 resolve 的过程， 从 ROOT 节点开始一层层扩展数据
+
+![](./images/resolve.png)
+
+这是后处理的过程， 当所有通过 resolve 获取的数据都完成后， 会有个层层返回触发的过程。
+
+![](./images/post-process.png)
+
 这里先说明后处理方法的意义：
 
 - 可以在每层节点上，当其子孙字段都处理完毕之后，修改字段， 或者读取子孙节点的数据， 来实现各种统计或者聚合操作
