@@ -19,21 +19,66 @@
 ## 介绍
 
 GraphQL 是一个优秀的 API 查询工具，广泛应用于各种场景。但它并非万能，针对不同场景也会遇到各种问题。
+
 本文专门针对“项目内部前后端 API 对接”这一常见场景，分析 GraphQL 存在的问题，并尝试用基于 `pydantic-resolve` 的 Resolver 模式逐一解决。
 
 先简单介绍一下什么是 Resolver 模式：这是一种基于现有 RESTful 接口，通过引入 resolver 概念，将原本“通用”的 RESTful 接口扩展为类似 RPC 的、专为前端页面定制数据的接口。
 
 在 Resolver 模式中，我们基于 Pydantic 类进行扩展和数据组合。
 
-例如，Story 可以直接继承 BaseStory 的所有字段，也可以通过 `@ensure_subset(BaseStory)` 并添加自定义字段，实现类似 GraphQL 挑选字段的功能。
+先上一段代码， 里面演示了获取关联数据和后处理之后生成视图数据的能力，文章会逐步解释所有功能和设计意图。
 
-还可以通过 resolve 方法和 DataLoader 层层拼装数据。
+```python
+class Story(BaseStory):
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
 
-通俗来说，就是通过定义 pydantic 类并提供根数据入口，使接口能够精确满足前端对视图数据的需求。
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel): 
+    id: int
+    point: int
 
-它可以扮演类似 BFF 层的角色，并且相比传统 BFF 工具，在构建视图数据的过程中更具创新性——为每层节点都引入了“后处理”方法，使许多原本需要遍历展开的汇总计算变得易如反掌。
+    name: str
+    def resolve_name(self, ancestor_context):
+        return f'{ancestor_context["sprint_name"]} - {self.name}'
 
-具体细节将在后文的对比中详细说明。
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
+
+    done_perc: float = 0.0
+    def post_done_perc(self):
+        if self.tasks:
+            done_count = sum(1 for task in self.tasks if task.done)
+            return done_count / len(self.tasks) * 100
+        else:
+            return 0
+
+class Sprint(BaseSprint):
+    __pydantic_resolve_expose__ = {'name': 'sprint_name'}
+
+    simple_stories: list[SimpleStory] = []
+    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+        return loader.load(self.id)
+
+
+@router.get('/sprints', response_model=list[Sprint])
+async def get_sprints():
+    sprint1 = Sprint(
+        id=1,
+        name="Sprint 1",
+        start=datetime.datetime(2025, 6, 12)
+    )
+    sprint2 = Sprint(
+        id=2,
+        name="Sprint 2",
+        start=datetime.datetime(2025, 7, 1)
+    )
+    return await Resolver().resolve([sprint1, sprint2] * 10)
+```
+
+它可以扮演类似 BFF 层的角色，并且相比传统 BFF 工具， 它为每层节点都引入了“后处理”方法，使许多原本需要遍历展开的汇总计算变得易如反掌。
 
 更多关于 pydantic-resolve 的功能，请参见 [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
 
