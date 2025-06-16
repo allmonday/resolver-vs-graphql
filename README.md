@@ -35,7 +35,7 @@ class Story(BaseStory):
         return loader.load(self.id)
 
 @ensure_subset(BaseStory)
-class SimpleStory(BaseModel): 
+class SimpleStory(BaseModel):
     id: int
     point: int
 
@@ -477,7 +477,7 @@ return await Resolver(
 
 ![](./images/resolve.png)
 
-这是后处理的过程， 当所有通过 resolve 获取的数据都完成后， 会有个层层返回触发的过程。
+这是后处理的过程， 当所有通过 resolver 获取的数据都完成后， 会有个层层返回触发的过程。
 
 ![](./images/post-process.png)
 
@@ -598,6 +598,107 @@ async def get_sprints():
     sprints = [Sprint.model_validate(s) for s in sprints]
     return await Resolver().resolve(sprints)
 ```
+
+## 聊聊 Resolver 模式的设计哲学
+
+Resolver 模式的核心是根据业务设计描述数据结构。
+
+当我们移除所有的 resolver 和 post 方法后， 剩下的就是我们想要定义的业务对象本身。
+
+而这些方法只不过是告知该如何去获得/计算这些数据。
+
+**数据结构是最重要的资产**， 获取方式可以随意替换/优化。
+
+```python
+class SimpleStory(BaseModel):  # how to pick fields..
+    id: int
+    name: str
+    point: int
+
+    tasks: list[BaseTask]
+    done_perc: float
+
+class Sprint(BaseSprint):
+
+    simple_stories: list[SimpleStory]
+    task_count: int
+```
+
+让我们从头复盘一下设计过程：
+
+通过 ER 模型我们可以定义好数据之间的关系， 它是所有数据之间进行组合的“约束条件”。 比如 Sprint -> Story 遵循的是 1: N 的关系。
+
+因此可以为 BaseStory 添加 tasks 字段。
+
+此时通过添加默认值， 我们默认允许这个对象初始化时， 不去理会这些值的缺失， 因为数据会在后续处理中被设置。 这个处理可能发生在 resolver 也可能发生在 post.
+
+> 换言之，如果你初始化数据中已经包含了 tasks 数据， 那么 `tasks: list[BaseTask]` 就不需要设置 `[]` 默认值， 记住 pydantic 支持加载嵌套的数据。
+
+```python
+class SimpleStory(BaseModel):  # how to pick fields..
+    id: int
+    name: str
+    point: int
+
+    tasks: list[BaseTask] = []
+    done_perc: float = 0
+
+class Sprint(BaseSprint):
+    simple_stories: list[SimpleStory] = []
+```
+
+然后就是为这些待查询的值设置 resolver 方法
+
+```python
+class SimpleStory(BaseModel):  # how to pick fields..
+    id: int
+    name: str
+    point: int
+
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
+
+    done_perc: float = 0
+
+class Sprint(BaseSprint):
+    simple_stories: list[SimpleStory] = []
+    def post_task_count(self, collector=Collector(alias='task_count', flat=True)):
+        return len(collector.values())  # this can be optimized further
+```
+
+还有一些值， 它需要等待 tasks 数据全部获取完之后才能算出来， 那就需要通过 post 方法来进行设置。
+
+```python
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel):  # how to pick fields..
+    __pydantic_resolve_collect__ = {'tasks': ('task_count', 'task_count2')}  # send tasks to collectors
+
+    id: int
+    name: str
+    point: int
+    tasks: list[BaseTask]
+
+    done_perc: float = 0.0
+    def post_done_perc(self):
+        # self.tasks is filled with real values
+        if self.tasks:
+            done_count = sum(1 for task in self.tasks if task.done)
+            return done_count / len(self.tasks) * 100
+        else:
+            return 0
+
+class Sprint(BaseSprint):
+    simple_stories: list[SimpleStory]
+    task_count: int = 0
+    def post_task_count(self, collector=Collector(alias='task_count', flat=True)):
+        return len(collector.values())  # this can be optimized further
+```
+
+**因此 pydantic 对象定义的是期望的数据结构 （接口设计）， 而 resolver 和 post 方法只是提供具体的实现方式。**
+
+> 之所以推荐使用 Dataloader 因为它在查询复杂度和运行效率两者间平衡做的最好， 但就如前文所说， 当有更好/更快的方式可以获取关联数据时 （比如优化过的 ORM 查询）， 我们只需要删除 resolver 和 Dataloader 就能立即完成代码重构。
+> pydantic 可以加载嵌套对象， 所以不需要限制自己在 resolver 中返回 flat 的对象数据。 （嵌套的 dict 都是 ok 的）
 
 ## Resolver 与 GraphQL 模式对比
 
