@@ -695,6 +695,8 @@ class Sprint(BaseSprint):
         return len(collector.values())  # this can be optimized further
 ```
 
+> 如果还有一些值， 要根据 post 的计算产出物才能算出来， pydantic-resolve 提供了 `post_default_handler` 来处理。
+
 **因此 pydantic 对象定义的是期望的数据结构 （接口设计）， 而 resolver 和 post 方法只是提供具体的实现方式。**
 
 > 之所以推荐使用 Dataloader 因为它在查询复杂度和运行效率两者间平衡做的最好， 但就如前文所说， 当有更好/更快的方式可以获取关联数据时 （比如优化过的 ORM 查询）， 我们只需要删除 resolver 和 Dataloader 就能立即完成代码重构。
