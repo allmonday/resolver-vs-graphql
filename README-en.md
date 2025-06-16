@@ -1,4 +1,4 @@
-# Resolver vs. GraphQL
+# Resolver Pattern: A Better Alternative to GraphQL in BFF.
 
 [中文](./README.md)
 

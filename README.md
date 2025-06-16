@@ -1,4 +1,4 @@
-# Resolver vs. GraphQL
+# Resolver 模式， 在 BFF 场景中比 GraphQL 更好的一个选择
 
 [EN](./README-en.md)
 
