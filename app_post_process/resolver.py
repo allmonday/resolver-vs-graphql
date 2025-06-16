@@ -118,3 +118,19 @@ async def get_sprints():
         start=datetime.datetime(2025, 7, 1)
     )
     return await Resolver().resolve([sprint1, sprint2] * 10)
+
+
+def post_process(sprints: List[Sprint]) -> List[Sprint]:
+    for sprint in sprints:
+        sprint_name = sprint.name
+
+        for story in sprint.simple_stories:
+            story.name = f"{sprint_name} - {story.name}"
+            if story.tasks:
+                done_count = sum(1 for task in story.tasks if task.done)
+                done_perc = done_count / len(story.tasks) * 100
+            else:
+                done_perc = 0
+            story.done_perc = done_perc
+
+    return sprints

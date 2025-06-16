@@ -4,7 +4,9 @@
 
 这是一个基于 FastAPI 的 Resolver 模式和 GraphQL (strawberry) 模式的对比项目。
 
-关注的是**项目内部前后端 API 调用**场景下的最佳开发模式（同样适用于 BFF backend for frontend 场景）。
+关注的是**项目内部前后端 API 调用**场景下的最佳开发模式
+
+> 同样适用于 BFF backend for frontend 场景
 
 > 默认读者已熟悉 GraphQL 和 RESTful，本文不再赘述基础概念。
 
@@ -13,7 +15,7 @@
 - [x] 关联数据的获取与构建
 - [x] 查询参数的传递
 - [x] 前端查询方式的比较
-- [x] 数据在每个节点的后处理，最小成本构建视图数据
+- [x] 数据在每个节点的后处理，最小成本构建视图数据 (重点)
 - [x] 架构与重构的区别
 
 ## 介绍
@@ -22,11 +24,11 @@ GraphQL 是一个优秀的 API 查询工具，广泛应用于各种场景。但�
 
 本文专门针对“项目内部前后端 API 对接”这一常见场景，分析 GraphQL 存在的问题，并尝试用基于 `pydantic-resolve` 的 Resolver 模式逐一解决。
 
-先简单介绍一下什么是 Resolver 模式：这是一种基于现有 RESTful 接口，通过引入 resolver 概念，将原本“通用”的 RESTful 接口扩展为类似 RPC 的、专为前端页面定制数据的接口。
+先简单介绍一下什么是 Resolver 模式：这是一种基于现有 RESTful 接口，通过引入 resolver 和后处理概念，将原本“通用”的 RESTful 接口扩展为类似 RPC 的、专为前端页面定制数据的接口。
 
-在 Resolver 模式中，我们基于 Pydantic 类进行扩展和数据组合。
+在 Resolver 模式中，我们基于 Pydantic 类进行扩展和数据组合。 (dataclass 也可以使用)
 
-先上一段代码， 里面演示了获取关联数据和后处理之后生成视图数据的能力，文章会逐步解释所有功能和设计意图。
+先上一段代码， 里面演示了获取关联数据和后处理之后生成视图数据的能力，文章后续会逐步解释所有功能和设计意图。
 
 ```python
 class Story(BaseStory):
@@ -78,7 +80,7 @@ async def get_sprints():
     return await Resolver().resolve([sprint1, sprint2] * 10)
 ```
 
-它可以扮演类似 BFF 层的角色，并且相比传统 BFF 工具， 它为每层节点都引入了“后处理”方法，使许多原本需要遍历展开的汇总计算变得易如反掌。
+它可以扮演类似 BFF 层的角色，相比传统 BFF 工具， 每层节点都引入了“后处理”方法，使许多原本需要遍历展开的汇总计算变得易如反掌。
 
 更多关于 pydantic-resolve 的功能，请参见 [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
 
@@ -465,7 +467,75 @@ return await Resolver(
 
 ## 数据在每个节点的后处理，轻松构建视图数据
 
+```sh
+uvicorn app_post_process.main:app --reload
+```
+
 如果说前面的对比还是小打小闹的话， 那么后处理的能力是 Resolver 模式和 GraphQL 模式差异最大的部分。
+
+先来简单演示一下什么是后处理， 下面的方法做了几件事情：
+
+- 修改 story.name, 添加 sprint.name 作为前缀
+- 根据 story.tasks 计算 story.done_perc
+
+```python
+def post_process(sprints: List[Sprint]) -> List[Sprint]:
+    for sprint in sprints:
+        sprint_name = sprint.name
+
+        for story in sprint.simple_stories:
+            story.name = f"{sprint_name} - {story.name}"
+            if story.tasks:
+                done_count = sum(1 for task in story.tasks if task.done)
+                done_perc = done_count / len(story.tasks) * 100
+            else:
+                done_perc = 0
+            story.done_perc = done_perc
+
+            for task in story.tasks:
+                ...
+
+    return sprints
+```
+
+可以看出这段代码如果增加更多的后处理需求，或者更多的节点层数， 可读性会快速下降。
+
+在 Resolver 模式中可以这样来表达：
+
+```python
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel):
+    ...
+
+    name: str
+    def resolve_name(self, ancestor_context):
+        # 因为 name 已经有的数据， 所以即使在 resolver 中也可以操作。
+        # ancestor_context 代表自己的直系祖先节点中定义的变量。 在这里指 sprint.name
+        return f'{ancestor_context['sprint_name']} - {self.name}'
+
+    done_perc: float = 0.0
+    def post_done_perc(self):
+        if self.tasks:
+            done_count = sum(1 for task in self.tasks if task.done)
+            return done_count / len(self.tasks) * 100
+        else:
+            return 0
+
+class Sprint(BaseSprint):
+    __pydantic_resolve_expose__ = {'name': 'sprint_name'}
+
+    simple_stories: list[SimpleStory] = []
+    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+        return loader.load(self.id)
+```
+
+祖先节点的字段通过特定的 ancestor_context 来传递， 不污染 locals
+
+而 done_perc 则是依靠在节点的局部进行计算
+
+可维护性会改善不少
+
+---
 
 在 GraphQL 中，受限于它 Query 的功能， 后处理能力可以说是基本无法实现的。
 

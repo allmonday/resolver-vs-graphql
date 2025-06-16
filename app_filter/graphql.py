@@ -87,6 +87,7 @@ class Sprint:
     @strawberry.field
     async def stories(self, info: strawberry.Info, ids: list[int]) -> List["Story"]:
         stories = await info.context.story_loader.load(self.id)
+        print(stories)
         return [s for s in stories if s.id in ids]
 
     @strawberry.field
