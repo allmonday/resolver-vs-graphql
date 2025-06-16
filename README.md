@@ -450,7 +450,7 @@ return await Resolver(
 
 另外在 TypeScript 流行的当下， 为了生成前端类型定义， 还需要借助 GraphQL code generator, GraphQL Typescript Generator 之类的生成工具。
 
-而在 Resolver 模式下，借助 FastAPI 和 pydantic， 通过 OpenAPI 3.x 可以直接把 RESTful API 生成 sdk，前端可以直接调用 rpc 方法和类型定义。 比如 openapi-ts。
+而在 Resolver 模式下，借助 FastAPI 和 pydantic， 通过 OpenAPI 3.x 可以直接把 RESTful API 生成 sdk，前端可以直接调用 RPC 方法和类型定义。 比如 openapi-ts。
 
 而 OpenAPI 3.x 标准是个非常成熟的标准， 各种工具的稳定性也很高。 还有 Swagger 可以查看 API 的定义和返回类型。
 
@@ -628,7 +628,7 @@ class Sprint(BaseSprint):
 
 通过 ER 模型我们可以定义好数据之间的关系， 它是所有数据之间进行组合的“约束条件”。 比如 Sprint -> Story 遵循的是 1: N 的关系。
 
-因此可以为 BaseStory 添加 tasks 字段。
+因此可以为 Sprint 添加 stories 字段。
 
 此时通过添加默认值， 我们默认允许这个对象初始化时， 不去理会这些值的缺失， 因为数据会在后续处理中被设置。 这个处理可能发生在 resolver 也可能发生在 post.
 
