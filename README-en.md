@@ -1,65 +1,113 @@
-# Resolver Pattern: A Better Alternative to GraphQL in BFF.
+# Resolver Pattern: A Better Choice than GraphQL in BFF Scenarios
 
 [中文](./README.md)
 
-This is a comparative project between the Resolver pattern and the GraphQL (strawberry) pattern based on FastAPI.
+This is a comparison project between Resolver pattern and GraphQL (strawberry) pattern based on FastAPI.
 
-It focuses on the optimal development pattern for **internal frontend to backend API calls within a project** (also applicable to the BFF - backend for frontend scenario).
+Focuses on the best development pattern for **internal frontend-backend API communication** scenarios
 
-> It is assumed that the reader is familiar with GraphQL and RESTful, so the basic concepts will not be repeated here.
+> Also applicable to BFF (Backend for Frontend) scenarios
 
-The comparison scenarios include:
+> Assumes readers are familiar with GraphQL and RESTful, basic concepts will not be elaborated.
 
-- [x] Retrieval and construction of associated data
-- [x] Passing of query parameters
-- [x] Comparison of frontend query methods
-- [x] Post - processing of data at each node to construct view data at minimum cost
-- [x] Differences in architecture and refactoring
+Comparison scenarios include:
+
+- [x] Associated data fetching and construction
+- [x] Query parameter passing
+- [x] Frontend query method comparison
+- [x] Post-processing data at each node, minimal cost view data construction (key focus)
+- [x] Architecture and refactoring differences
 
 ## Introduction
 
-GraphQL is an excellent API query tool widely used in various scenarios. However, it is not a one - size - fits - all solution and may encounter various problems in different scenarios. This article specifically analyzes the problems of GraphQL in the common scenario of "internal frontend to backend API docking within a project" and attempts to solve them one by one using the Resolver pattern based on `pydantic-resolve`.
+GraphQL is an excellent API query tool, widely used in various scenarios. However, it's not a universal solution and encounters various problems in different scenarios.
 
-Let's first briefly introduce what the Resolver pattern is: It is a pattern that, based on existing RESTful interfaces, extends the originally "generic" RESTful interfaces into RPC - like interfaces customized for frontend pages by introducing the concept of resolvers.
+This article specifically targets the common scenario of "internal frontend-backend API integration", analyzes the problems with GraphQL, and attempts to solve them one by one using the Resolver pattern based on `pydantic-resolve`.
 
-In the Resolver pattern, we extend and combine data based on Pydantic classes.
+Let me briefly introduce what the Resolver pattern is: It's a pattern that extends existing RESTful interfaces by introducing resolver and post-processing concepts, transforming originally "generic" RESTful interfaces into RPC-like interfaces that are customized for frontend pages.
 
-For example, a `Story` can directly inherit all fields from `BaseStory`, or it can use the `@ensure_subset(BaseStory)` decorator and add custom fields to achieve a function similar to field selection in GraphQL.
+In the Resolver pattern, we extend and combine data based on Pydantic classes (dataclass can also be used).
 
-Data can also be assembled layer by layer through resolve methods and DataLoader.
+Here's a code example that demonstrates the ability to fetch associated data and generate view data after post-processing. The article will gradually explain all features and design intentions later.
 
-Put simply, by defining Pydantic classes and providing a root data entry, the interface can precisely meet the frontend's requirements for view data.
+```python
+class Story(BaseStory):
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
 
-It can act as a BFF layer, and compared with traditional BFF tools, it is more innovative in the process of constructing view data - it introduces a "post - processing" method for each layer of nodes, making many summary calculations that originally required traversal and expansion much easier.
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel):
+    id: int
+    point: int
 
-The specific details will be explained in the subsequent comparison.
+    name: str
+    def resolve_name(self, ancestor_context):
+        return f'{ancestor_context["sprint_name"]} - {self.name}'
 
-For more features of `pydantic-resolve`, please refer to [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve).
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
 
-## Starting the Project
+    done_perc: float = 0.0
+    def post_done_perc(self):
+        if self.tasks:
+            done_count = sum(1 for task in self.tasks if task.done)
+            return done_count / len(self.tasks) * 100
+        else:
+            return 0
+
+class Sprint(BaseSprint):
+    __pydantic_resolve_expose__ = {'name': 'sprint_name'}
+
+    simple_stories: list[SimpleStory] = []
+    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+        return loader.load(self.id)
+
+
+@router.get('/sprints', response_model=list[Sprint])
+async def get_sprints():
+    sprint1 = Sprint(
+        id=1,
+        name="Sprint 1",
+        start=datetime.datetime(2025, 6, 12)
+    )
+    sprint2 = Sprint(
+        id=2,
+        name="Sprint 2",
+        start=datetime.datetime(2025, 7, 1)
+    )
+    return await Resolver().resolve([sprint1, sprint2] * 10)
+```
+
+It can act as a BFF layer. Compared to traditional BFF tools, each layer introduces "post-processing" methods, making many aggregation calculations that originally required traversal expansion as easy as pie.
+
+For more features of pydantic-resolve, please see [https://github.com/allmonday/pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
+
+## Getting Started
 
 1. Install dependencies:
    ```sh
    python -m venv venv
-   source venv/bin/activate  # Replace this for Windows users
-   pip install -r requirement.txt
+   source venv/bin/activate  # Windows users please replace accordingly
+   pip install -r requirements.txt
    ```
 2. Start the service:
    ```sh
    uvicorn app.main:app --reload
    ```
-3. Open [http://localhost:8000/graphql](http://localhost:8000/graphql) to access the GraphQL playground.
-4. Open [http://localhost:8000/docs](http://localhost:8000/docs) to view the Resolver pattern.
+3. Open [http://localhost:8000/graphql](http://localhost:8000/graphql) to access GraphQL playground.
+4. Open [http://localhost:8000/docs](http://localhost:8000/docs) to view Resolver pattern
 
-## 1. Data Retrieval and Combination
+## 1. Data Fetching and Composition
 
 ```sh
 uvicorn app.main:app --reload
 ```
 
-Resolver is one of the two core features of GraphQL (the other is the Query function). Through Resolver and DataLoader, GraphQL can freely combine data.
+Resolver itself is one of the two core features of GraphQL (the other being Query functionality). Through Resolver and dataloader, GraphQL can freely compose data.
 
-In GraphQL, data can be defined in a graph structure, but in fact, for each specific query, the structure of the Query is tree - like. This is why it is not allowed to only write the object name in the query without providing specific fields.
+In GraphQL, data definition can be graph-based, but in practice, for each specific query, the Query structure is tree-like. This is why queries cannot just write object names without providing specific fields.
 
 This is a valid query:
 
@@ -86,18 +134,19 @@ query MyQuery {
     id
     name
     start
-    stories  // The playground will show a red error
+    stories # playground will show red error
   }
 }
 ```
 
-Because if the `stories` field contains object - type fields, GraphQL does not know whether to continue expanding. Therefore, in essence, the Query is the basis (configuration) for driving the Resolvers' queries.
+Because if the stories field has object types, GraphQL doesn't know whether to continue expanding. Therefore, essentially, Query serves as the driving basis (configuration) for resolvers.
 
-In the Resolver pattern, **the Query statement is hard - coded in the code**. The desired combined data is described through the inheritance and extension of Pydantic classes.
+In the Resolver pattern, **Query statements are hardcoded into the code**, describing the desired combined data through inheritance and extension of pydantic classes.
 
-> This approach sacrifices the flexibility of queries and is more suitable for RPC - like scenarios, i.e., the internal API docking scenario mentioned at the beginning of the article, which relieves data users from the burden of an additional query statement. So how do you determine if you are in this scenario? The simplest example is if your Query uses all the fields of an object in a specific entry, then you are probably in this scenario.
+> This approach loses query flexibility but becomes more suitable for RPC usage scenarios, namely the internal API integration scenarios mentioned at the beginning of the article, allowing data consumers to not bear the additional burden of query statements.
+> How to determine if you're in this scenario? The simplest example is if your Query uses all fields of objects in specific entry points, then you probably belong to this scenario.
 
-If you directly inherit from `BaseStory`, all fields of `BaseStory` will be returned. You can also define a new class and declare the required fields in it. At the same time, the `@ensure_subset` decorator is provided to additionally ensure that the field names actually exist in `BaseStory`.
+If you directly inherit BaseStory, all fields of BaseStory will be returned. You can also define a new class and declare the required fields in it. The `@ensure_subset` decorator is provided to additionally ensure that field names actually exist in BaseStory.
 
 ```python
 class Story(BaseStory):
@@ -122,9 +171,9 @@ class Sprint(BaseSprint):
         return loader.load(self.id)
 ```
 
-Another difference from the GraphQL concept is that the input of GraphQL is the user's query statement, while the input data of Resolver is the root - node data. This may sound a bit abstract, but it will be clearer through a code comparison.
+Another difference from GraphQL concepts is that GraphQL's input is user query statements, while Resolver's input data is root node data. This might be a bit abstract to say directly, so a code comparison would be more illustrative:
 
-In GraphQL, when the user queries `sprints`, the retrieval of the root data occurs within the `sprints` method.
+In GraphQL, when users query sprints, the root data fetching happens within the sprints method.
 
 ```python
 @strawberry.type
@@ -148,7 +197,7 @@ class Query:
         return [sprint1, sprint2] * 10
 ```
 
-In the Resolver pattern, you need to provide root data and pass it to the `Resolver().resolve` method for parsing.
+In Resolver, you need to provide root data and pass it to the `Resolver().resolve` method for parsing.
 
 ```python
 @router.get('/sprints', response_model=list[Sprint])
@@ -166,10 +215,10 @@ async def get_sprints():
     return await Resolver().resolve([sprint1, sprint2] * 10)
 ```
 
-This approach is very friendly to traditional RESTful interfaces. For example, for an interface that originally returned flat `BaseSprint` objects, you can seamlessly expand it by simply modifying the definition of the `response_model` type.
+This approach is very friendly to traditional RESTful interfaces. For example, an interface that originally returns flat BaseSprint objects can be seamlessly extended by simply modifying the response_model definition type.
 
 ```python
-@router.get('/base - sprints', response_model=list[BaseSprint])
+@router.get('/base-sprints', response_model=list[BaseSprint])
 async def get_base_sprints():
     sprint1 = BaseSprint(
         id=1,
@@ -184,7 +233,7 @@ async def get_base_sprints():
     return [sprint1, sprint2] * 10
 ```
 
-Of course, if you want to mimic the GraphQL style, it's also easy:
+Of course, if you want to mimic GraphQL's style, it's also easy:
 
 ```python
 class Query(BaseModel):
@@ -206,11 +255,11 @@ class Query(BaseModel):
 await Resolver().resolve(Query())
 ```
 
-That's all.
+That's it.
 
-Another ability of Resolver is to handle self - referencing type data. Since there is no need to provide a Query statement like in GraphQL, the construction logic of self - referencing type data (such as a `Tree`) can be completely managed by the backend.
+Another capability of Resolver is handling self-referential type data. Because it doesn't need to provide Query statements like GraphQL, the construction logic for self-referential types (like Tree) can be completely managed by the backend.
 
-In contrast, in GraphQL, because the querier doesn't know the actual depth, they need to write a very deep query statement like this:
+For comparison, in GraphQL, queriers need to write very deep query statements like this because they don't know the actual depth:
 
 ```graphql
 query MyQuery {
@@ -232,9 +281,9 @@ query MyQuery {
 }
 ```
 
-There is also a possibility that the described depth is insufficient and the query needs to be adjusted.
+There's also the possibility of insufficient depth description requiring further query adjustments.
 
-In contrast, in the Resolver or traditional RESTful pattern, you only need to define the type and return value:
+In contrast, in Resolver or traditional RESTful mode, you just need to define the type and return value:
 
 ```python
 @router.get('/tree', response_model=list[Tree])
@@ -244,15 +293,15 @@ async def get_tree():
     ])]
 ```
 
-Then simply run `curl http://localhost:8000/tree` and you're done. The depth issue is left to the specific backend logic to handle.
+Then a simple `curl http://localhost:8000/tree` gets it done. The depth problem is solved by backend-specific logic.
 
-## Passing of Query Parameters
+## Query Parameter Passing
 
 ```sh
 uvicorn app_filter.main:app --reload
 ```
 
-GraphQL can receive parameters at each node, and each resolver can accept a set of params.
+GraphQL can receive parameters at each node, with each resolver able to accept a set of params:
 
 ```python
 @strawberry.type
@@ -267,7 +316,7 @@ class Sprint:
         return [s for s in stories if s.id in ids]
 ```
 
-However, in actual use, for the convenience of dynamic setting, parameters are generally managed centrally at the top:
+However, in practice, for convenience of dynamic setting, they are generally managed centrally at the top:
 
 ```graphql
 // query
@@ -297,9 +346,9 @@ query MyQuery($ids: [Int!]!) {
 }
 ```
 
-This implies a design idea of centralized parameter management. Although the consumers of the parameters are at various nodes, they can be obtained centrally by agreeing on variable aliases.
+This implies a centralized parameter management design philosophy. Although parameter consumers are at various nodes, centralized access can be achieved through agreed variable aliases.
 
-In the Resolver pattern, since the query is "hard - coded" in the code in advance, all parameters can be provided through a global variable like `context`:
+In Resolver mode, since queries are already "hardcoded" through code in advance, all parameters can be provided through global variables like context:
 
 ```python
 class Sprint(BaseSprint):
@@ -326,11 +375,11 @@ async def get_sprints():
     ).resolve([sprint1, sprint2] * 10)
 ```
 
-This is equivalent to the GraphQL approach in form.
+This is formally equivalent to GraphQL's approach.
 
-By now, you may have noticed that in the usage of providing `ids`, filtering the `stories` after retrieval through code is a very inefficient method. A better way is obviously to pass the parameters to the DataLoader and let it complete the filtering during the data retrieval process.
+You might notice that filtering stories after fetching them in the provided ids usage is a very inefficient approach. A better way would obviously be to pass it to the Dataloader and let it complete the filtering during data fetching.
 
-In the GraphQL scenario, the DataLoader can only set parameters through the `loader.load(params)` method. So, to achieve this function, there are only some rather awkward ways of writing, such as passing both the `id` and `ids` to the DataLoader through `params`.
+In GraphQL scenarios, Dataloader can only be configured through the params in the `loader.load(params)` method, so achieving this functionality requires some awkward writing, such as passing both id and ids together through params to the dataloader:
 
 ```python
   @strawberry.field
@@ -339,7 +388,7 @@ In the GraphQL scenario, the DataLoader can only set parameters through the `loa
       return stories
 ```
 
-Then, inside the DataLoader, the parameters need to be split. At this time, the second parameter in the Tuple is actually redundant.
+Then extract them inside the Dataloader, where the second parameter in the Tuple is actually quite redundant.
 
 ```python
 async def batch_load_stories_with_filter(input: List[Tuple[int, List[int]]]) -> List[List["Story"]]:
@@ -355,7 +404,7 @@ async def batch_load_stories_with_filter(input: List[Tuple[int, List[int]]]) -> 
     return [sprint_id_to_stories[sid] for sid in sprint_ids]
 ```
 
-In the multi - entry Resolver pattern, this problem is very easy to solve. Simply add a field `story_ids` to the DataLoader class.
+In the Resolver's multi-entry mode, this problem is very simple to solve. Just add the story_ids field directly to the Dataloader class:
 
 ```python
 class StoryLoader(DataLoader):
@@ -370,7 +419,7 @@ class StoryLoader(DataLoader):
         return [sprint_id_to_stories[sid] for sid in sprint_ids]
 ```
 
-Then, directly pass the parameters in the `Resolver()` method.
+Then pass parameters directly in the Resolver() method:
 
 ```python
 return await Resolver(
@@ -382,62 +431,139 @@ return await Resolver(
 ).resolve([sprint1, sprint2] * 10)
 ```
 
-In addition, `pydantic-resolve` also provides `parent` to obtain the parent - node object and `ancestor_context` to obtain specific fields of ancestor nodes. These are functions generally not supported by current GraphQL frameworks. For specific usage methods, please refer to [ancestor_context](https://allmonday.github.io/pydantic-resolve/api/#ancestor_context) and [parent](https://allmonday.github.io/pydantic-resolve/api/#parent).
+Additionally, `pydantic-resolve` provides parent to access parent node objects and `ancestor_context` to access specific fields from ancestor nodes. These are features that most current GraphQL frameworks don't support. For specific usage, please refer to [ancestor_context](https://allmonday.github.io/pydantic-resolve/api/#ancestor_context), [parent](https://allmonday.github.io/pydantic-resolve/api/#parent).
 
-To summarize:
+Summary:
 
-| Parameter Type | Resolver  | GraphQL         |
-| -------------- | --------- | --------------- |
-| Node           | Supported | Supported       |
-| Global context | Supported | Supported       |
-| Parent node    | Supported | Limited support |
-| Ancestor node  | Supported | Not supported   |
-| Dataloader     | Supported | Not supported   |
+| Parameter Type | Resolver | GraphQL |
+| -------------- | -------- | ------- |
+| Node           | Support  | Support |
+| Global context | Support  | Support |
+| Parent node    | Support  | Limited |
+| Ancestor node  | Support  | None    |
+| Dataloader     | Support  | None    |
 
-## Differences in frontend Query Methods
+## Frontend Query Method Differences
 
-When using GraphQL, the frontend needs to maintain query statements. Although some people have hard - coded queries into RPC, these methods require additional technical complexity.
+Using GraphQL, the frontend needs to maintain query statements. Although some people have hardcoded queries into RPC, these all require additional technical complexity.
 
-Generally, no one directly uses `fetch` to construct GraphQL queries. Usually, tools like Apollo Client are used for queries.
+Generally, no one would directly use fetch to build GraphQL queries; tools like Apollo client are typically used for querying.
 
-In the current era of popular TypeScript, to generate frontend type definitions, code - generation tools such as GraphQL Code Generator and GraphQL TypeScript Generator are also needed.
+Also, in the current TypeScript era, to generate frontend type definitions, tools like GraphQL code generator and GraphQL Typescript Generator are needed.
 
-In the Resolver pattern, with the help of FastAPI and Pydantic, the RESTful API can be directly converted into an SDK through OpenAPI 3.x. The frontend can directly call RPC methods and use type definitions. For example, `openapi - ts`.
+In Resolver mode, with FastAPI and pydantic, RESTful APIs can be directly generated into SDKs through OpenAPI 3.x, allowing frontends to directly call RPC methods and type definitions, such as openapi-ts.
 
-The OpenAPI 3.x standard is a very mature standard, and the stability of various tools is also high. There is also Swagger to view API definitions and return types.
+OpenAPI 3.x is a very mature standard with high stability of various tools. There's also Swagger for viewing API definitions and return types.
 
-In addition, the writing of the Resolver pattern is not complicated. It is even feasible for the frontend to assemble data itself (similar to the BFF pattern). Of course, it will be more convenient in a full - stack scenario.
+Additionally, writing in Resolver mode is not complex, and it's even feasible for frontends to assemble data themselves (similar to BFF mode), though full-stack mode would be more convenient.
 
-| API                                   | Resolver     | GraphQL                           |
-| ------------------------------------- | ------------ | --------------------------------- |
-| Provide Query statement               | Not required | Required                          |
-| Provide types                         | Supported    | Supported (relatively cumbersome) |
-| Generate SDK                          | Supported    | Supported (relatively complex)    |
-| Frontend awareness after modification | Strong       | Relatively weak                   |
+| API                     | Resolver | GraphQL           |
+| ----------------------- | -------- | ----------------- |
+| Provide Query Statement | No       | Yes               |
+| Provide Types           | Support  | Support (complex) |
+| Generate SDK            | Support  | Support (complex) |
+| Frontend Awareness      | Strong   | Relatively weak   |
 
-## Post - Processing of Data at Each Node, Easily Constructing View Data
+## Post-processing Data at Each Node, Easy View Data Construction
 
-If the previous comparisons were just minor differences, then the post - processing ability is the most significant difference between the Resolver pattern and the GraphQL pattern.
+```sh
+uvicorn app_post_process.main:app --reload
+```
 
-In GraphQL, limited by its Query function, the post - processing ability is basically non - existent.
+If the previous comparisons were minor skirmishes, then post-processing capability is the biggest difference between Resolver and GraphQL patterns.
 
-Most GraphQL frameworks only support a post - processing middleware at the root node, that is, after all data is retrieved, developers can perform some processing.
+Let me first demonstrate what post-processing is. The following method does several things:
 
-In the Resolver pattern, each node can provide a post - hook for additional processing after the processing of its descendant data is completed.
+- Modify story.name, adding sprint.name as prefix
+- Calculate story.done_perc based on story.tasks
 
-Here, let's first explain the significance of the post - processing method:
+```python
+def post_process(sprints: List[Sprint]) -> List[Sprint]:
+    for sprint in sprints:
+        sprint_name = sprint.name
 
-- On each layer of nodes, after the processing of its descendant fields is completed, fields can be modified, or data from descendant nodes can be read to implement various statistical or aggregation operations. For example, calculate the completion rate of a `Story` based on the `done` status of `Task`.
-- Data can be moved across layers. For example, move the `Task` node under the `Sprint` node.
-- Cross - layer statistical aggregation can be performed on nodes. For example, in a `Sprint`, the number of `Task` can be counted without going through the `Story` layer.
+        for story in sprint.simple_stories:
+            story.name = f"{sprint_name} - {story.name}"
+            if story.tasks:
+                done_count = sum(1 for task in story.tasks if task.done)
+                done_perc = done_count / len(story.tasks) * 100
+            else:
+                done_perc = 0
+            story.done_perc = done_perc
 
-Unfortunately, the concept of post - processing does not exist in the design of GraphQL.
+            for task in story.tasks:
+                ...
 
-When using GraphQL, there is only a top - down data retrieval process, and it is impossible to implement post - processing at each layer. For example, in a `story` node, it is impossible to know the content of `tasks` in advance.
+    return sprints
+```
 
-Moreover, the way Query drives resolvers restricts the possibility of adding new fields in the post - processing method.
+You can see that if this code had more post-processing requirements or more node layers, readability would decline rapidly.
 
-For example, in the Resolver pattern, the `post_done_perc` method can be used to obtain information from `self.tasks` and then calculate the `done` percentage.
+In Resolver mode, this can be expressed as:
+
+```python
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel):
+    ...
+
+    name: str
+    def resolve_name(self, ancestor_context):
+        # Because name already has data, it can be operated even in resolver.
+        # ancestor_context represents variables defined in direct ancestor nodes. Here it refers to sprint.name
+        return f'{ancestor_context["sprint_name"]} - {self.name}'
+
+    done_perc: float = 0.0
+    def post_done_perc(self):
+        if self.tasks:
+            done_count = sum(1 for task in self.tasks if task.done)
+            return done_count / len(self.tasks) * 100
+        else:
+            return 0
+
+class Sprint(BaseSprint):
+    __pydantic_resolve_expose__ = {'name': 'sprint_name'}
+
+    simple_stories: list[SimpleStory] = []
+    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+        return loader.load(self.id)
+```
+
+Ancestor node fields are passed through specific ancestor_context without polluting locals.
+
+And done_perc relies on local calculation at the node level.
+
+Maintainability improves significantly.
+
+---
+
+In GraphQL, limited by its Query functionality, post-processing capability can be said to be basically impossible to implement.
+
+Many GraphQL frameworks at most support a post-processing middleware at the root node, where developers can do some processing after all data is fetched.
+
+In Resolver mode, each node can provide post hooks for additional processing after descendant data processing is completed.
+
+This is the resolve process, expanding data layer by layer from the ROOT node:
+
+![](./images/resolve.png)
+
+This is the post-processing process. When all data obtained through resolvers is complete, there's a layer-by-layer return triggering process:
+
+![](./images/post-process.png)
+
+Here's the significance of post-processing methods:
+
+- Can modify fields at each layer node after its descendant fields are all processed, or read descendant node data to implement various statistics or aggregation operations
+  - For example, calculate Story completion rate based on Task.done status
+- Can move node data across layers, such as moving Task nodes under Sprint nodes
+- Can perform cross-layer statistical aggregation, such as counting how many Tasks there are in Sprint by skipping the Story layer transfer
+
+Unfortunately, in GraphQL's design, the concept of post-processing doesn't exist.
+
+Using GraphQL can only experience a top-down data fetching process. There's no way to implement post-processing at each layer. For example, I cannot know the content of tasks in advance at the story node.
+
+And the Query-driven resolver approach constrains the possibility of adding new fields in post-processing methods.
+
+For example, in Resolver mode, you can use the post_done_perc method to get `self.tasks` information and then calculate the done ratio:
 
 ```python
 @ensure_subset(BaseStory)
@@ -459,56 +585,56 @@ class SimpleStory(BaseModel):  # how to pick fields..
             return 0.0
 ```
 
-In GraphQL, even if node - level post - processing is supported, for data like `done_perc` that depends on `tasks`, if only `done_perc` is declared in the Query but `tasks` is not, then when the Query drives the query, `done_perc` will report an error due to the lack of `tasks` data. If you want to support it, a static analysis process is needed to analyze the dependency of `done_perc` on `tasks` in advance.
+In GraphQL, even if node-level post-processing were somehow supported, for data like done_perc that depends on tasks, if the Query only declares `done_perc` but not `tasks`, then done_perc would error due to lack of tasks data when Query drives the query. If forced to support this, some static analysis process would be needed to analyze the dependency of done_perc on tasks in advance.
 
-It is precisely the post - processing ability that enables the Resolver to easily construct view data and makes secondary construction and modification of data possible.
+It's precisely the post-processing capability that gives Resolver the ability to easily build view data, making secondary construction and modification based on data possible.
 
-Here are some post - processing functions supported by the Resolver pattern:
+Here are some post-processing features supported by Resolver mode:
 
-| Post - Processing Ability                                                                                   | Resolver             | GraphQL |
-| ----------------------------------------------------------------------------------------------------------- | -------------------- | ------- |
-| Modify current field data [post](https://allmonday.github.io/pydantic-resolve/api/#post)                    | Supported            | None    |
-| Read descendant data of the current node                                                                    | Supported            | None    |
-| Transfer data to a descendant node [collector](https://allmonday.github.io/pydantic-resolve/api/#collector) | Supported            | None    |
-| Hide fields during serialization                                                                            | Supported (pydantic) | None    |
+| Post-processing Capability                                                                             | Resolver           | GraphQL |
+| ------------------------------------------------------------------------------------------------------ | ------------------ | ------- |
+| Modify current field data [post](https://allmonday.github.io/pydantic-resolve/api/#post)               | Support            | None    |
+| Read current node's descendant data                                                                    | Support            | None    |
+| Send data to descendant nodes [collector](https://allmonday.github.io/pydantic-resolve/api/#collector) | Support            | None    |
+| Hide fields in serialization                                                                           | Support (pydantic) | None    |
 
-You can also view more examples in the code `app_post_process/rest.py`.
+You can also check the code in `app_post_process/rest.py` for more examples.
 
-## Differences in Architecture Design
+## Architecture Design Differences
 
-In this section, let's talk about the experience of using GraphQL in project iteration.
+This section discusses the experience of using GraphQL in project iterations.
 
-When refactoring with GraphQL, the biggest obstacle is the reluctance to modify existing schemas because it is unknown which fields in the schema are being queried and which are not.
+The biggest obstacle when refactoring GraphQL is not daring to modify existing schemas because you don't know which fields in the schema have been queried and which haven't.
 
-This means that once a field is provided, its basic structure is restricted and cannot be easily adjusted. Otherwise, all queries need to be audited to confirm the situation.
+This means that as long as fields have been provided, the basic structure is constrained and can't be easily adjusted, otherwise you'd have to audit all queries to confirm the situation.
 
-Due to the flexibility of GraphQL, different teams use it in different ways. Some people construct backend - friendly schemas based on the ER model, as in our demo. Others construct frontend - friendly schemas by integrating many post - processing processes based on the frontend view model. However, because GraphQL lacks a powerful post - processing ability, these two approaches cannot be combined.
+Due to GraphQL's flexibility, different teams use it in different ways. Some people build backend-friendly schemas based on ER models, like in our demo, while others build frontend-friendly schemas based on frontend view models, incorporating many post-processing processes. But these two approaches can't be combined because GraphQL lacks powerful post-processing capabilities.
 
-**Summary**: Due to the lack of a good post - processing method, GraphQL schema design is caught in a dilemma between prioritizing the ER model and the view model.
+**Summary**: Because GraphQL lacks good post-processing methods, it leads to schema design falling into the dilemma of ER model priority vs view model priority.
 
-Generally, the GraphQL schemas provided by platforms follow the former approach, i.e., they are designed in a way that is close to the ER model. The process of converting to frontend view data is left to the querying party.
+Generally, GraphQL schemas provided by platforms follow the former, designed close to ER models, delegating the process of converting to frontend view data to the queriers.
 
-In the Resolver pattern, since the view model consumed by the frontend is actually maintained on the backend, developers clearly know how the fields are being used.
+In Resolver mode, because the view model consumed by the frontend is actually maintained on the backend, developers have a clear understanding of field usage.
 
-Thanks to the multiple entry points of RESTful and the good inheritance and extension mechanisms, adjustments to each interface will not affect other interfaces.
+Thanks to RESTful's multi-entry points and good inheritance and extension mechanisms, adjustments to each interface won't affect other interfaces.
 
-In terms of architecture, the Resolver pattern matches the objective situation where the structural stability gradually decreases during the process of transforming from the ER model to the view model.
+Architecturally, Resolver mode matches the objective situation where structural stability gradually decreases in the ER model -> view model process.
 
-The Base types of the ER model are very stable. Business objects are assembled as needed through inheritance and associated data, and then view objects are adjusted through the post - processing process.
+Base types in ER models are very stable. Business objects are assembled through inheritance and associated data as needed, then adjusted into view objects through post-processing.
 
-Therefore, the Resolver approach can smoothly construct various specific view data required by the business on the basis of conforming to the ER model.
+Thus, Resolver mode can smoothly build various specific view data required by business while conforming to ER models.
 
-**Summary**: The Resolver pattern assembles data based on specific business requirements on the basis of the ER model and then fine - tunes the data into the desired view data through post - processing. It provides good readability and maintainability.
+**Summary**: Resolver mode assembles data through specific business based on ER models, then uses post-processing to fine-tune data into expected view data, providing good readability and maintainability.
 
-## Easter Egg
+## Bonus
 
-So, how can we add post - processing methods to GraphQL?
+How to add post-processing methods to GraphQL?
 
-Here is an interesting idea: Delete all resolve methods and all DataLoaders, and directly use the GraphQL query results as input data.
+Here's an interesting approach: remove all resolve methods, remove all Dataloaders, and directly use GraphQL query results as input data.
 
-Then, keep all post methods and let them convert the data into the desired view objects.
+Then keep all post methods to convert data into expected view objects.
 
-> Since Pydantic itself has the ability to load nested data.
+> Because pydantic itself has the ability to load nested data
 
 ```python
 @ensure_subset(BaseStory)
@@ -542,44 +668,147 @@ async def get_sprints():
     return await Resolver().resolve(sprints)
 ```
 
-## Comparison between Resolver and GraphQL Patterns
+## Discussion on Resolver Pattern Design Philosophy
 
-| Feature                 | Resolver Pattern                                          | GraphQL Pattern                                                          |
-| ----------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Interface Design        | Based on URL paths and HTTP methods                       | Based on a single endpoint and typed Schema                              |
-| Data Retrieval          | Separate interfaces, static construction in internal code | Multiple resources can be retrieved in a single request, query on demand |
-| Flexibility             | Fixed return structure, can also flexibly define fields   | frontend can customize query fields, higher flexibility                  |
-| Documentation and Types | Swagger/OpenAPI 3.0, supports SDK generation              | Automatically generates Playground, strong type validation               |
+The core of Resolver pattern is designing data structures based on business requirements.
 
-This project implements both Resolver and GraphQL interfaces to facilitate the comparison and learning of the usage methods, advantages, and disadvantages of the two.
+When we remove all resolver and post methods, what remains is the business objects we want to define.
+
+These methods are just instructions on how to obtain/calculate this data.
+
+**Data structure is the most important asset**, acquisition methods can be freely replaced/optimized.
+
+```python
+class SimpleStory(BaseModel):  # how to pick fields..
+    id: int
+    name: str
+    point: int
+
+    tasks: list[BaseTask]
+    done_perc: float
+
+class Sprint(BaseSprint):
+
+    simple_stories: list[SimpleStory]
+    task_count: int
+```
+
+Let's recap the design process from the beginning:
+
+Through ER models, we can define relationships between data, which are the "constraints" for all data combinations. For example, Sprint -> Story follows a 1:N relationship.
+
+Therefore, we can add stories field to Sprint.
+
+By adding default values, we allow this object to ignore missing values during initialization because data will be set in subsequent processing. This processing might happen in resolver or post.
+
+> In other words, if your initialization data already contains tasks data, then `tasks: list[BaseTask]` doesn't need to set `[]` default value. Remember pydantic supports loading nested data.
+
+```python
+class SimpleStory(BaseModel):  # how to pick fields..
+    id: int
+    name: str
+    point: int
+
+    tasks: list[BaseTask] = []
+    done_perc: float = 0
+
+class Sprint(BaseSprint):
+    simple_stories: list[SimpleStory] = []
+```
+
+Then set resolver methods for these values to be queried:
+
+```python
+class SimpleStory(BaseModel):  # how to pick fields..
+    id: int
+    name: str
+    point: int
+
+    tasks: list[BaseTask] = []
+    def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
+        return loader.load(self.id)
+
+    done_perc: float = 0
+
+class Sprint(BaseSprint):
+    simple_stories: list[SimpleStory] = []
+    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+        return loader.load(self.id)
+```
+
+Some values need to wait for all tasks data to be fetched before being calculated, so they need to be set through post methods:
+
+```python
+@ensure_subset(BaseStory)
+class SimpleStory(BaseModel):  # how to pick fields..
+    __pydantic_resolve_collect__ = {'tasks': ('task_count', 'task_count2')}  # send tasks to collectors
+
+    id: int
+    name: str
+    point: int
+    tasks: list[BaseTask]
+
+    done_perc: float = 0.0
+    def post_done_perc(self):
+        # self.tasks is filled with real values
+        if self.tasks:
+            done_count = sum(1 for task in self.tasks if task.done)
+            return done_count / len(self.tasks) * 100
+        else:
+            return 0
+
+class Sprint(BaseSprint):
+    simple_stories: list[SimpleStory]
+    task_count: int = 0
+    def post_task_count(self, collector=Collector(alias='task_count', flat=True)):
+        return len(collector.values())  # this can be optimized further
+```
+
+> If there are values that need to be calculated based on post calculation outputs, pydantic-resolve provides `post_default_handler` to handle this.
+
+**Therefore, pydantic objects define the expected data structure (interface design), while resolver and post methods just provide specific implementation methods.**
+
+> The reason for recommending Dataloader is that it balances query complexity and runtime efficiency best. But as mentioned earlier, when there are better/faster ways to obtain associated data (like optimized ORM queries), we can immediately complete code refactoring by just removing resolver and Dataloader.
+> Pydantic can load nested objects, so there's no need to limit yourself to returning flat object data in resolvers. (Nested dicts are ok too)
+
+## Resolver vs GraphQL Pattern Comparison
+
+| Feature               | Resolver Pattern                                       | GraphQL Pattern                                                 |
+| --------------------- | ------------------------------------------------------ | --------------------------------------------------------------- |
+| Interface Design      | Based on URL paths and HTTP methods                    | Based on single endpoint and typed Schema                       |
+| Data Fetching         | Separate interfaces, internal code static construction | Single request can fetch multiple resources, on-demand querying |
+| Flexibility           | Fixed return structure, can flexibly define fields     | Frontend can customize query fields, higher flexibility         |
+| Documentation & Types | Swagger/OpenAPI3.0, supports SDK generation            | Auto-generated Playground, strong type validation               |
+
+This project implements both Resolver and GraphQL interfaces for comparison and learning the usage and pros/cons of both.
 
 ### GraphQL
 
-Flexible, can perform queries, suitable for scenarios where flexible data queries are required.
+Flexible, queryable, suitable for scenarios requiring flexible data querying
 
 ![image](https://github.com/user-attachments/assets/cf80c282-b3bc-472d-a584-bbb73a213d4d)
 
 ### Resolver
 
-Uses [pydantic-resolve](https://github.com/allmonday/pydantic-resolve).
+Uses [pydantic-resolve](https://github.com/allmonday/pydantic-resolve)
 
-Uses fewer technology stacks to construct equivalent data structures, suitable for internal API docking scenarios within a project.
+Uses fewer technology stacks to build equivalent data structures, suitable for internal API integration scenarios
 
-Tools like [https://github.com/hey-api/openapi-ts](https://github.com/hey-api/openapi-ts) can be used to generate frontend SDKs.
+Can use tools like https://github.com/hey-api/openapi-ts to generate frontend SDKs
 
 ![image](https://github.com/user-attachments/assets/bb922804-5ed8-429c-b907-a92bf3c4b3ed)
 
 ## Benchmark
 
-Finally, using the Resolver pattern does not affect the performance of the interface; instead, it can make it faster.
+Finally, using Resolver pattern doesn't affect interface performance and can actually become faster.
 
-You can easily refactor GraphQL code using the Resolver pattern. This process does not require much mental effort and will even streamline various codes.
+You can easily refactor GraphQL code using Resolver, and this process won't have too much mental burden but will actually streamline various codes.
 
-Therefore, for the scenario of **internal frontend to backend API docking within a project**, the Resolver pattern is a reliable choice.
+Therefore, for **internal frontend-backend API integration** scenarios, Resolver pattern is a reliable choice.
 
 `ab -c 50 -n 1000`
 
-### GraphQL
+### graphql
 
 ```shell
 Server Software:        uvicorn
