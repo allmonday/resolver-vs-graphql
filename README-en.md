@@ -806,9 +806,104 @@ You can easily refactor GraphQL code using Resolver, and this process won't have
 
 Therefore, for **internal frontend-backend API integration** scenarios, Resolver pattern is a reliable choice.
 
+in bench, we also include dataclass.
+
+
+```
+uvicorn app_bench.main:app 
+```
+
 `ab -c 50 -n 1000`
 
-### graphql
+
+### Resolver
+
+pydantic: 418 req/sec
+
+```shell
+Concurrency Level:      50
+Time taken for tests:   2.390 seconds
+Complete requests:      1000
+Failed requests:        0
+Total transferred:      5078000 bytes
+HTML transferred:       4951000 bytes
+Requests per second:    418.34 [#/sec] (mean)
+Time per request:       119.521 [ms] (mean)
+Time per request:       2.390 [ms] (mean, across all concurrent requests)
+Transfer rate:          2074.53 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.3      0       1
+Processing:    30  116  10.4    116     149
+Waiting:       29  115  10.4    114     149
+Total:         31  116  10.4    116     150
+
+Percentage of the requests served within a certain time (ms)
+  50%    116
+  66%    120
+  75%    123
+  80%    124
+  90%    128
+  95%    131
+  98%    141
+  99%    148
+ 100%    150 (longest request)
+```
+
+dataclass: 499 req/sec
+
+```shell
+Concurrency Level:      50
+Time taken for tests:   2.001 seconds
+Complete requests:      1000
+Failed requests:        0
+Total transferred:      5078000 bytes
+HTML transferred:       4951000 bytes
+Requests per second:    499.70 [#/sec] (mean)
+Time per request:       100.060 [ms] (mean)
+Time per request:       2.001 [ms] (mean, across all concurrent requests)
+Transfer rate:          2478.01 [Kbytes/sec] received
+
+Connection Times (ms)
+              min  mean[+/-sd] median   max
+Connect:        0    0   0.2      0       1
+Processing:    25   98  10.4     95     125
+Waiting:       25   96   9.7     94     125
+Total:         25   98  10.4     96     125
+
+Percentage of the requests served within a certain time (ms)
+  50%     96
+  66%    101
+  75%    105
+  80%    107
+  90%    112
+  95%    116
+  98%    119
+  99%    123
+ 100%    125 (longest request)
+------------ graphql------------
+This is ApacheBench, Version 2.3 <$Revision: 1913912 $>
+Copyright 1996 Adam Twiss, Zeus Technology Ltd, http://www.zeustech.net/
+Licensed to The Apache Software Foundation, http://www.apache.org/
+
+Benchmarking localhost (be patient)
+Completed 100 requests
+Completed 200 requests
+Completed 300 requests
+Completed 400 requests
+Completed 500 requests
+Completed 600 requests
+Completed 700 requests
+Completed 800 requests
+Completed 900 requests
+Completed 1000 requests
+Finished 1000 requests
+```
+
+### GraphQL
+
+strawberry: 289 req/sec
 
 ```shell
 Server Software:        uvicorn
@@ -816,55 +911,37 @@ Server Hostname:        localhost
 Server Port:            8000
 
 Document Path:          /graphql
-Document Length:        5303 bytes
+Document Length:        4883 bytes
 
 Concurrency Level:      50
-Time taken for tests:   3.630 seconds
+Time taken for tests:   3.453 seconds
 Complete requests:      1000
 Failed requests:        0
-Total transferred:      5430000 bytes
-Total body sent:        395000
-HTML transferred:       5303000 bytes
-Requests per second:    275.49 [#/sec] (mean)
-Time per request:       181.498 [ms] (mean)
-Time per request:       3.630 [ms] (mean, across all concurrent requests)
-Transfer rate:          1460.82 [Kbytes/sec] received
-                        106.27 kb/s sent
-                        1567.09 kb/s total
+Total transferred:      5010000 bytes
+Total body sent:        382000
+HTML transferred:       4883000 bytes
+Requests per second:    289.59 [#/sec] (mean)
+Time per request:       172.656 [ms] (mean)
+Time per request:       3.453 [ms] (mean, across all concurrent requests)
+Transfer rate:          1416.86 [Kbytes/sec] received
+                        108.03 kb/s sent
+                        1524.89 kb/s total
 
 Connection Times (ms)
               min  mean[+/-sd] median   max
 Connect:        0    0   0.2      0       1
-Processing:    31  178  14.3    178     272
-Waiting:       30  176  14.3    176     270
-Total:         31  178  14.4    179     273
-```
+Processing:    27  169  14.0    171     242
+Waiting:       26  167  13.9    168     240
+Total:         27  169  14.0    171     243
 
-### Resolver
-
-```shell
-Server Software:        uvicorn
-Server Hostname:        localhost
-Server Port:            8000
-
-Document Path:          /sprints
-Document Length:        4621 bytes
-
-Concurrency Level:      50
-Time taken for tests:   2.194 seconds
-Complete requests:      1000
-Failed requests:        0
-Total transferred:      4748000 bytes
-HTML transferred:       4621000 bytes
-Requests per second:    455.79 [#/sec] (mean)
-Time per request:       109.700 [ms] (mean)
-Time per request:       2.194 [ms] (mean, across all concurrent requests)
-Transfer rate:          2113.36 [Kbytes/sec] received
-
-Connection Times (ms)
-              min  mean[+/-sd] median   max
-Connect:        0    0   0.3      0       1
-Processing:    30  107  10.9    106     138
-Waiting:       28  105  10.7    104     138
-Total:         30  107  11.0    106     140
-```
+Percentage of the requests served within a certain time (ms)
+  50%    171
+  66%    173
+  75%    174
+  80%    175
+  90%    177
+  95%    180
+  98%    194
+  99%    216
+ 100%    243 (longest request)
+ ```

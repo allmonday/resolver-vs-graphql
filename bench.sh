@@ -1,9 +1,13 @@
-echo '------------ base test ------------'
-ab -c 50 -n 1000 http://localhost:8000/base-test
+# echo '------------ base test ------------'
+# ab -c 50 -n 1000 http://localhost:8000/base-test
 
 
 echo '------------ rest + resolver ------------'
 ab -c 50 -n 1000 http://localhost:8000/sprints
+
+
+echo '------------ rest + dc resolver ------------'
+ab -c 50 -n 1000 http://localhost:8000/dc/sprints
 
 
 echo '------------ graphql'------------ 

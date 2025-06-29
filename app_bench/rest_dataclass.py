@@ -1,5 +1,6 @@
 import asyncio
-from pydantic import BaseModel
+from pydantic.dataclasses import dataclass
+from dataclasses import field
 from typing import List
 import datetime
 from aiodataloader import DataLoader
@@ -7,21 +8,23 @@ from typing import List
 from pydantic_resolve import LoaderDepend, ensure_subset
 from fastapi import APIRouter
 from pydantic_resolve import Resolver
-from pydantic import Field
 
-class BaseTask(BaseModel):
+@dataclass
+class BaseTask:
     id: int
     name: str
     owner: int
     done: bool
 
-class BaseStory(BaseModel):
+@dataclass
+class BaseStory:
     id: int
     name: str
     owner: int
     point: int
 
-class BaseSprint(BaseModel):
+@dataclass
+class BaseSprint:
     id: int
     name: str
     start: datetime.datetime
@@ -60,37 +63,39 @@ class StoryLoader(DataLoader):
 
 
 # ---- business model ------
+@dataclass
 class Story(BaseStory):
-    tasks: list[BaseTask] = []
+    tasks: list[BaseTask] = field(default_factory=list)
+    
     def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
         return loader.load(self.id)
     
 
-@ensure_subset(BaseStory)
-class SimpleStory(BaseModel):  # how to pick fields..
-    id: int
-
-    name: str
+# @ensure_subset(BaseStory)
+@dataclass
+class SimpleStory(BaseStory):  # how to pick fields..
+    tasks: list[BaseTask] = field(default_factory=list)
+    
     def resolve_name(self, ancestor_context):
         return f'{ancestor_context["sprint_name"]} - {self.name}'
 
-    point: int
-
-    tasks: list[BaseTask] = []
     def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
         return loader.load(self.id)
 
+@dataclass
 class Sprint(BaseSprint):
     __pydantic_resolve_expose__ = {'name': 'sprint_name'}
-
-    simple_stories: list[SimpleStory] = []
-    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+    stories: list[SimpleStory] = field(default_factory=list)
+    
+    def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
         return loader.load(self.id)
 
 
 # yet another way, you can even mimic the GraphQL response structure (data, error)
-class Query(BaseModel):
-    sprints: list[Sprint] = []
+@dataclass
+class Query:
+    sprints: list[Sprint] = field(default_factory=list)
+    
     async def resolve_sprints(self):
         sprint1 = Sprint(
             id=1,
@@ -104,9 +109,10 @@ class Query(BaseModel):
         )
         return [sprint1, sprint2]
 
-class Tree(BaseModel):
+@dataclass
+class Tree:
     id: int
-    children: list['Tree'] = Field(default_factory=list)
+    children: list['Tree'] = field(default_factory=list)
     
 router = APIRouter()
 

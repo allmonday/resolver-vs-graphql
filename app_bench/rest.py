@@ -66,8 +66,7 @@ class Story(BaseStory):
         return loader.load(self.id)
     
 
-@ensure_subset(BaseStory)
-class SimpleStory(BaseModel):  # how to pick fields..
+class Story(BaseStory):  # how to pick fields..
     id: int
 
     name: str
@@ -83,8 +82,8 @@ class SimpleStory(BaseModel):  # how to pick fields..
 class Sprint(BaseSprint):
     __pydantic_resolve_expose__ = {'name': 'sprint_name'}
 
-    simple_stories: list[SimpleStory] = []
-    def resolve_simple_stories(self, loader=LoaderDepend(StoryLoader)):
+    stories: list[Story] = []
+    def resolve_stories(self, loader=LoaderDepend(StoryLoader)):
         return loader.load(self.id)
 
 
