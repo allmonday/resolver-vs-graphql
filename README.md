@@ -18,6 +18,8 @@
 - [x] 数据在每个节点的后处理，最小成本构建视图数据 (重点)
 - [x] 架构与重构的区别
 
+> 虽然名叫 pydantic-resolve, dataclass 也是同样支持的
+
 ## 介绍
 
 GraphQL 是一个优秀的 API 查询工具，广泛应用于各种场景。但它并非万能，针对不同场景也会遇到各种问题。
@@ -810,11 +812,10 @@ class Sprint(BaseSprint):
 这里对比 app 目录下纯拼装的性能对比， 同时还引入了 dataclass 的 case
 
 ```
-uvicorn app_bench.main:app 
+uvicorn app_bench.main:app
 ```
 
 `ab -c 50 -n 1000`
-
 
 ### Resolver
 
@@ -944,4 +945,4 @@ Percentage of the requests served within a certain time (ms)
   98%    194
   99%    216
  100%    243 (longest request)
- ```
+```

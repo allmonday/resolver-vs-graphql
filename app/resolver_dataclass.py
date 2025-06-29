@@ -71,14 +71,19 @@ class Story(BaseStory):
         return loader.load(self.id)
     
 
-# @ensure_subset(BaseStory)
+@ensure_subset(BaseStory)
 @dataclass
-class SimpleStory(BaseStory):  # how to pick fields..
-    tasks: list[BaseTask] = field(default_factory=list)
-    
+class SimpleStory():  # how to pick fields..
+    id: int
+
+    name: str
     def resolve_name(self, ancestor_context):
         return f'{ancestor_context["sprint_name"]} - {self.name}'
 
+    point: int
+
+    tasks: list[BaseTask] = field(default_factory=list)
+    
     def resolve_tasks(self, loader=LoaderDepend(TaskLoader)):
         return loader.load(self.id)
 

@@ -1,5 +1,5 @@
 fastapi
 strawberry-graphql[fastapi]
 uvicorn[standard]
-pydantic-resolve
+pydantic-resolve==1.12.3
 aiodataloader
