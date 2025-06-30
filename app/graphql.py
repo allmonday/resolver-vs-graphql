@@ -20,20 +20,20 @@ STORIES_DB = [
     {"id": 3, "name": "Story 3", "owner": 103, "point": 3, "sprint_id": 2},
 ]
 
-async def batch_load_tasks(story_ids: List[int]) -> List[List["Task"]]:
+async def batch_load_tasks(story_ids: List[int]):
     await asyncio.sleep(0.01)  # Simulate async DB call
-    story_id_to_tasks: Dict[int, List[Task]] = {sid: [] for sid in story_ids}
+    story_id_to_tasks: Dict[int, List[Dict]] = {sid: [] for sid in story_ids}
     for t in TASKS_DB:
         if t["story_id"] in story_id_to_tasks:
-            story_id_to_tasks[t["story_id"]].append(Task(id=t["id"], name=t["name"], owner=t["owner"], done=t["done"]))
+            story_id_to_tasks[t["story_id"]].append(dict(id=t["id"], name=t["name"], owner=t["owner"], done=t["done"]))
     return [story_id_to_tasks[sid] for sid in story_ids]
 
-async def batch_load_stories(sprint_ids: List[int]) -> List[List["Story"]]:
+async def batch_load_stories(sprint_ids: List[int]):
     await asyncio.sleep(0.01)  # Simulate async DB call
-    sprint_id_to_stories: Dict[int, List[Story]] = {sid: [] for sid in sprint_ids}
+    sprint_id_to_stories: Dict[int, List[Dict]] = {sid: [] for sid in sprint_ids}
     for s in STORIES_DB:
         if s["sprint_id"] in sprint_id_to_stories:
-            sprint_id_to_stories[s["sprint_id"]].append(Story(id=s["id"], name=s["name"], owner=s["owner"], point=s["point"]))
+            sprint_id_to_stories[s["sprint_id"]].append(dict(id=s["id"], name=s["name"], owner=s["owner"], point=s["point"]))
     return [sprint_id_to_stories[sid] for sid in sprint_ids]
 
 # Custom context class inheriting from BaseContext
@@ -47,37 +47,40 @@ class CustomContext(BaseContext):
 async def get_context_dependency() -> CustomContext:
     return CustomContext()
 
-
 @strawberry.type
-class Tree:
-    id: int
-    children: list['Tree'] = field(default_factory=list)
-
-@strawberry.type
-class Task:
+class TaskBase:
     id: int
     name: str
     owner: int
     done: bool
 
 @strawberry.type
-class Story:
+class StoryBase:
     id: int
     name: str
     owner: int
     point: int
-    @strawberry.field
-    async def tasks(self, info: strawberry.Info) -> List["Task"]:
-        return await info.context.task_loader.load(self.id)
 
 @strawberry.type
-class Sprint:
+class SprintBase:
     id: int
     name: str
     start: datetime.datetime
+
+@strawberry.type
+class Story(StoryBase):
+    @strawberry.field
+    async def tasks(self, info: strawberry.Info) -> List["TaskBase"]:
+        results = await info.context.task_loader.load(self.id)
+        return [TaskBase(**task) for task in results]
+
+@strawberry.type
+class Sprint(SprintBase):
     @strawberry.field
     async def stories(self, info: strawberry.Info) -> List["Story"]:
-        return await info.context.story_loader.load(self.id)
+        results = await info.context.story_loader.load(self.id)
+        return [Story(**story) for story in results]
+
 
 @strawberry.type
 class Query:
@@ -99,11 +102,6 @@ class Query:
         )
         return [sprint1, sprint2] * 10
 
-    @strawberry.field
-    def tree(self) -> List[Tree]:
-        return [Tree(id=1, children=[
-            Tree(id=2, children=[Tree(id=3)])
-        ])]
 
 schema = strawberry.Schema(query=Query)
 
