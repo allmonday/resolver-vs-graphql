@@ -19,11 +19,7 @@ class Story(StoryBase):
 @strawberry.type
 class SimpleStory():  # how to pick fields..
     id: int
-
     name: str
-    def resolve_name(self, ancestor_context):
-        return f'{ancestor_context["sprint_name"]} - {self.name}'
-
     point: int
 
     tasks: list[TaskBase] = field(default_factory=list)
@@ -33,7 +29,6 @@ class SimpleStory():  # how to pick fields..
 
 @strawberry.type
 class Sprint(SprintBase):
-    __pydantic_resolve_expose__ = {'name': 'sprint_name'}
     stories: list[SimpleStory] = field(default_factory=list)
     
     def resolve_stories(self, loader=LoaderDepend(batch_load_stories)):

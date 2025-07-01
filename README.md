@@ -946,3 +946,108 @@ Percentage of the requests served within a certain time (ms)
   99%    216
  100%    243 (longest request)
 ```
+
+## 彩蛋 2
+
+先看一下 strawberry 中描述数据的方式， 可以发现里面存在数据耦合的情况。
+
+```python
+@strawberry.type
+class Task:
+    id: int
+    name: str
+    owner: int
+    done: bool
+
+@strawberry.type
+class Story:
+    id: int
+    name: str
+    owner: int
+    point: int
+    @strawberry.field
+    async def tasks(self, info: strawberry.Info) -> List["Task"]:
+        tasks = await info.context.task_loader.load(self.id)
+        return tasks
+
+@strawberry.type
+class Sprint:
+    id: int
+    name: str
+    start: datetime.datetime
+    task_count: int = 0
+    @strawberry.field
+    async def stories(self, info: strawberry.Info, ids: list[int]) -> List["Story"]:
+        stories = await info.context.story_loader.load(self.id)
+        print(stories)
+        return [s for s in stories if s.id in ids]
+```
+
+如果按继承 + 扩展的思路重写，那么我们可以重构为基本元素和组合元素。
+
+```python
+@strawberry.type
+class TaskBase:
+    id: int
+    name: str
+    owner: int
+    done: bool
+
+@strawberry.type
+class StoryBase:
+    id: int
+    name: str
+    owner: int
+    point: int
+
+@strawberry.type
+class SprintBase:
+    id: int
+    name: str
+    start: datetime.datetime
+
+@strawberry.type
+class Story(StoryBase):
+    @strawberry.field
+    async def tasks(self, info: strawberry.Info) -> List["TaskBase"]:
+        results = await info.context.task_loader.load(self.id)
+        return [TaskBase(**task) for task in results]
+
+@strawberry.type
+class Sprint(SprintBase):
+    @strawberry.field
+    async def stories(self, info: strawberry.Info) -> List["Story"]:
+        results = await info.context.story_loader.load(self.id)
+        return [Story(**story) for story in results]
+```
+
+注意， strawberry.type 是一个兼容 dataclass 的装饰器， 因此可以就地取材直接拿来拼装 resolver 结构
+
+```python
+from .graphql import batch_load_tasks, batch_load_stories, StoryBase, TaskBase, SprintBase
+
+@ensure_subset(StoryBase)
+@strawberry.type
+class SimpleStory():  # how to pick fields..
+    id: int
+    name: str
+    point: int
+
+    tasks: list[TaskBase] = field(default_factory=list)
+
+    def resolve_tasks(self, loader=LoaderDepend(batch_load_tasks)):
+        return loader.load(self.id)
+
+@strawberry.type
+class Sprint(SprintBase):
+    stories: list[SimpleStory] = field(default_factory=list)
+
+    def resolve_stories(self, loader=LoaderDepend(batch_load_stories)):
+        return loader.load(self.id)
+```
+
+这样有什么好处呢？
+
+首先我们知道 GraphQL 的优势是优秀的文档，灵活的代码查询， 提供了宏观角度对数据结构的观察和管理。
+
+Resolver 能够根据 Use case， 在局部拼装的过程中， 通过复用 dataloader 和 type， 再加上强大的后处理功能， 提供最高效便捷的 JSON-RPC 接口和数据。
