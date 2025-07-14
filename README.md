@@ -967,8 +967,8 @@ class Story:
     point: int
     @strawberry.field
     async def tasks(self, info: strawberry.Info) -> List["Task"]:
-        tasks = await info.context.task_loader.load(self.id)
-        return tasks
+        results = await info.context.task_loader.load(self.id)
+        return [TaskBase(**task) for task in results]
 
 @strawberry.type
 class Sprint:
@@ -977,10 +977,9 @@ class Sprint:
     start: datetime.datetime
     task_count: int = 0
     @strawberry.field
-    async def stories(self, info: strawberry.Info, ids: list[int]) -> List["Story"]:
-        stories = await info.context.story_loader.load(self.id)
-        print(stories)
-        return [s for s in stories if s.id in ids]
+    async def stories(self, info: strawberry.Info) -> List["Story"]:
+        results = await info.context.story_loader.load(self.id)
+        return [Story(**story) for story in results]
 ```
 
 如果按继承 + 扩展的思路重写，那么我们可以重构为基本元素和组合元素。
