@@ -2,7 +2,7 @@
 
 [EN](./README-en.md)
 
-这是一个基于 FastAPI 的 Resolver 模式和 GraphQL (strawberry) 模式的对比项目。
+这是一个基于 FastAPI 的 Resolver (基于 pydantic-resolve) 模式和 GraphQL (基于 strawberry) 模式的对比项目。
 
 关注的是**项目内部前后端 API 调用**场景下的最佳开发模式
 
