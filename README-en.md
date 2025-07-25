@@ -2,7 +2,7 @@
 
 [中文](./README.md)
 
-This is a comparison project between Resolver pattern and GraphQL (strawberry) pattern based on FastAPI.
+This is a comparison project between Resolver pattern （based on pydantic-resolve) and GraphQL (based on strawberry) pattern based on FastAPI.
 
 Focuses on the best development pattern for **internal frontend-backend API communication** scenarios
 
