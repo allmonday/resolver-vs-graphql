@@ -139,7 +139,9 @@ query MyQuery {
 }
 ```
 
-Because if the stories field has object types, GraphQL doesn't know whether to continue expanding. Therefore, essentially, Query serves as the driving basis (configuration) for resolvers.
+Because if the stories field has object types, GraphQL doesn't know whether to continue expanding.
+
+Therefore, essentially, Query serves as the driving basis (configuration) for resolvers.
 
 In the Resolver pattern, **Query statements are hardcoded into the code**, describing the desired combined data through inheritance and extension of pydantic classes.
 
